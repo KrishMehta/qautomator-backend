@@ -1,0 +1,8 @@
+variables: 
+  CHART_NAME: ixi-tara
+  APP_NAME: qautomator-backend
+  CHART_VERSION: 1.3.0
+
+include:
+  - project: 'common/gitlab-pipeline'
+    file: 'ixigo_common.yml'

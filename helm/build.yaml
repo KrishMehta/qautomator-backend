@@ -1,0 +1,54 @@
+podAnnotations:
+  promtail.io/log: "true"
+  promtail.io/path: "*.log" 
+
+replicaCount: 1
+containerPort: 8000
+
+canary:
+  strategy:
+    maxSurge: "25%"
+    maxUnavailable: 0
+    steps:
+      - setWeight: 50
+
+externalsecrets:
+  enabled: true
+  refreshInterval: 1h
+  keys:
+    - build/openai/qautomate
+  secretStoreRef:
+    name: ixigo-aws-store
+    kind: ClusterSecretStore
+
+
+service:
+  type: ClusterIP
+  port: 80
+
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: node.kubernetes.io/lifecycle
+          operator: In
+          values:
+          - spot
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 700Mi
+  requests:
+    cpu: 300m
+    memory: 300Mi
+
+volumeMounts:
+  - name: log-volume
+    mountPath: /var/log/
+volumes:
+  - hostPath:
+      path: /data/log/
+    name: log-volume
+
