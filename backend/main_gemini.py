@@ -1,10 +1,8 @@
 from typing import List
 
 from fastapi import FastAPI, File, UploadFile, Form
-import cv2
-import base64
-import os
 import tempfile
+import os
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import json
@@ -54,52 +52,13 @@ with open('qautomate/screens_for_visual_testing.json', 'r') as f:
     visual_testing_images = json.load(f)
 
 
-async def capture_frames_at_intervals(video_file, interval_ms=50):
-    try:
-        with tempfile.NamedTemporaryFile(delete=False) as tmp:
-            tmp.write(await video_file.read())
-            tmp_path = tmp.name
-
-        video = cv2.VideoCapture(tmp_path)
-
-        if not video.isOpened():
-            raise IOError(f"Error: Could not open video file {tmp_path}")
-
-        # Get video properties
-        fps = video.get(cv2.CAP_PROP_FPS)  # Frame rate
-        total_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-        duration_ms = int((total_frames / fps) * 1000)  # Total duration in milliseconds
-
-        print(f"Video FPS: {fps}")
-        print(f"Total frames: {total_frames}")
-        print(f"Estimated duration (milliseconds): {duration_ms}")
-
-        base64Frames = []
-        frame_count = 0
-
-        for ms in range(0, duration_ms + 1, interval_ms):  # Include the last frame
-            video.set(cv2.CAP_PROP_POS_MSEC, ms)  # Set the position of the video in milliseconds
-            success, frame = video.read()
-            if success:
-                _, buffer = cv2.imencode(".jpg", frame)
-                base64Frames.append(base64.b64encode(buffer).decode("utf-8"))
-                frame_count += 1
-            else:
-                print(f"Warning: Frame at {ms} ms could not be read.")
-
-        print(f"{frame_count} frames read and encoded (every {interval_ms} ms).")
-        return base64Frames
-
-    except Exception as e:
-        print(f"An error occurred: {e}")
-    finally:
-        video.release()
-
-
 @app.post("/func_flow/")
 async def generate_func_flow(file: UploadFile = File(...)):
     print("inside generate_func_flow")
-    base64Frames = await capture_frames_at_intervals(file, 300);
+
+    with tempfile.NamedTemporaryFile(delete=False) as tmp:
+        tmp.write(await file.read())
+        video_path = tmp.name
 
     # Prepare prompt messages
     PROMPT_MESSAGES = [
@@ -107,35 +66,28 @@ async def generate_func_flow(file: UploadFile = File(...)):
             "role": "user",
             "content": [
                 '''I am testing an Android application using video analysis to understand its functionality of 
-                {type_of_flow}. Specifically, I need to analyze the video frames of the application to generate a detailed functionality flow based on user interactions, focusing on the static UI elements and predefined states.
+                {type_of_flow}. Specifically, I need to analyze the video to generate a detailed functionality flow based on user interactions, focusing on the static UI elements and predefined states.
 
                     Please follow these steps:
 
-                    1. **Analyze the Video Frames:**
-                       - Observe the video frames to identify the sequence of user interactions with the application.
+                    1. **Analyze the Video:**
+                       - Observe the video to identify the sequence of user interactions with the application.
                        - Note down each step in detail, including any screen transitions, user inputs, and system responses, focusing on static UI elements and not on dynamic data from API responses.
 
                     2. **Generate the Functional Flow:**
-                       - Provide a detailed flow of the feature based on the observed interactions in the video frames.
+                       - Provide a detailed flow of the feature based on the observed interactions in the video.
                        - Clearly depict each step, including relevant conditions or branching logic triggered by user interactions or predictable system responses.
                        - Ensure that each step is described in the order it occurs, emphasizing static elements like buttons, input fields, labels, and predefined messages.
 
-                    Example Structure:
-
-                    **Functional Flow:**
-                    - Step 1: [Description of user interaction and initial state, e.g., "User launches the app and observes the splash screen."]
-                    - Step 2: [Description of subsequent interaction and app response, focusing on static elements, e.g., "User navigates to the main screen and sees options for Trains, Flights, Buses, and Hotels."]
-                    - Step 3: [Repeat for each step observed, describing user interactions and static components only.]
-
-                    Focus: Capture the functionality flow based on user interactions as seen in the video frames of the application, 
+                    Focus: Capture the functionality flow based on user interactions as seen in the video of the application, 
                     concentrating on static UI elements and avoiding reliance on dynamic data. Each step should be clear and concise, 
                     capturing the essence of user actions and predictable app behavior.
-                     These are frames from a video that I want to upload.''',
-                *map(lambda x: {"image": x, "resize": 768}, base64Frames),
+                     This is the video that I want to upload.''',
+                {"video": video_path}
             ],
         },
     ]
-    print("no of frames", len(base64Frames))
+
     params = {
         "model": "gemini-1.5-flash",
         "prompt": PROMPT_MESSAGES,
@@ -155,15 +107,19 @@ async def generate_test_cases(file: UploadFile = File(...),
                               ):
 
     print("generating TCs")
-    base64Frames = await capture_frames_at_intervals(file, 300)
+
+    with tempfile.NamedTemporaryFile(delete=False) as tmp:
+        tmp.write(await file.read())
+        video_path = tmp.name
+
     PROMPT_MESSAGES = [
         {
             "role": "user",
             "content": [
-                f'''Based on the detailed functionality flow generated from the video frames,
-                I need to create comprehensive UI-based test cases for the functionality of {type_of_flow}, based on the detailed functionality flow generated from the video frames.
+                f'''Based on the detailed functionality flow generated from the video,
+                I need to create comprehensive UI-based test cases for the functionality of {type_of_flow}, based on the detailed functionality flow generated from the video.
 
-                Please make sure that the test cases are comprehensive, covering all possible scenarios as observed in the video frames, and have expected outcomes based on static UI elements in the video frames and not dependent on dynamic data from APIs.
+                Please make sure that the test cases are comprehensive, covering all possible scenarios as observed in the video, and have expected outcomes based on static UI elements in the video and not dependent on dynamic data from APIs.
                 All Screens available {all_screens}
                 
                 ### Instructions:
@@ -179,7 +135,7 @@ async def generate_test_cases(file: UploadFile = File(...),
                    - Ensure each test case includes:
                      - A clear and specific description of the test case
                      - Attach the impacted screen names along with it.
-                     - Step-by-step instructions based on observed interactions in the video frames
+                     - Step-by-step instructions based on observed interactions in the video
                      - Specific and measurable expected outcomes based solely on static UI elements (e.g., presence of buttons, input fields, labels)
                      - Identification of edge cases and potential user errors (e.g., incorrect inputs, system errors)
 
@@ -202,8 +158,8 @@ async def generate_test_cases(file: UploadFile = File(...),
                       2. [Continue steps]
                     - **Expected Outcome:** [Specific expected results]
 
-                     These are frames from a video that I want to upload.''',
-                *map(lambda x: {"image": x, "resize": 768}, base64Frames),
+                     This is the video that I want to upload.''',
+                {"video": video_path}
             ],
         },
     ]
@@ -234,7 +190,9 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
 
     test_case_list_obj = json.loads(test_cases_list)
 
-    base64Frames = await capture_frames_at_intervals(file, 300)
+    with tempfile.NamedTemporaryFile(delete=False) as tmp:
+        tmp.write(await file.read())
+        video_path = tmp.name
 
     impacted_screens = set()
     for test_case in test_case_list_obj:
@@ -258,7 +216,7 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
             "role": "user",
             "content": [
                 f'''I have developed test cases for an Android application based on the {type_of_flow} functionality.
-                Using the provided video frames, functional flow, the xpaths of UI elements, and test cases,
+                Using the provided video, functional flow, the xpaths of UI elements, and test cases,
                 I need to generate Appium code with appropriate assertions and comments and automate the testing of this
                 specific functionality.
 
@@ -345,8 +303,8 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
                         # Verify that the button is disabled
                         assert not search_button.is_enabled(), "The search button should be disabled for invalid PNR input"
 
-                These are frames from a video that I want to upload.''',
-                *map(lambda x: {"image": x, "resize": 768}, base64Frames),
+                This is the video that I want to upload.''',
+                {"video": video_path}
             ],
         },
     ]
@@ -356,7 +314,7 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
             "role": "user",
             "content": [
                 f'''I have developed test cases for an iOS application based on the {type_of_flow} functionality.
-                Using the provided video frames, functional flow, the xpaths of UI elements, and test cases,
+                Using the provided video, functional flow, the xpaths of UI elements, and test cases,
                 I need to generate Appium code in JavaScript with appropriate assertions and comments and automate the testing of this
                 specific functionality.
 
@@ -462,8 +420,8 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
                         }}
                     }}
 
-                These are frames from a video that I want to upload.''',
-                *map(lambda x: {"image": x, "resize": 768}, base64Frames),
+                This is the video that I want to upload.''',
+                {"video": video_path}
             ],
         },
     ]
@@ -700,22 +658,3 @@ async def generate_test_cases_code_for_backend(request: BackendTestingRequest):
     result = genai.GenerativeModel('gemini-1.5-flash').generate_content(**params)
     print("result", result.text)
     return {"result": result.text}
-
-
-async def parse_video_to_frame(file):
-    with tempfile.NamedTemporaryFile(delete=False) as tmp:
-        tmp.write(await file.read())
-        tmp_path = tmp.name
-
-    # Process video and extract frames
-    video = cv2.VideoCapture(tmp_path)
-    base64Frames = []
-    while video.isOpened():
-        success, frame = video.read()
-        if not success:
-            break
-        _, buffer = cv2.imencode(".jpg", frame)
-        base64Frames.append(base64.b64encode(buffer).decode("utf-8"))
-    video.release()
-    os.remove(tmp_path)
-    return base64Frames
