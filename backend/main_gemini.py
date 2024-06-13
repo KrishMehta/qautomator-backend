@@ -52,7 +52,7 @@ with open('qautomate/screens_for_visual_testing.json', 'r') as f:
     visual_testing_images = json.load(f)
 
 
-@app.post("/func_flow/")
+@app.post("/func_flow_gemini/")
 async def generate_func_flow_gemini(file: UploadFile = File(...)):
     print("inside generate_func_flow")
 
@@ -100,7 +100,7 @@ async def generate_func_flow_gemini(file: UploadFile = File(...)):
     return {"result": result.text}
 
 
-@app.post("/generate_test_cases/")
+@app.post("/generate_test_cases_gemini/")
 async def generate_test_cases_gemini(file: UploadFile = File(...),
                               application_flow: str = Form(...),
                               type_of_flow: str = Form(...)
@@ -176,7 +176,7 @@ async def generate_test_cases_gemini(file: UploadFile = File(...),
     return {"result": result.text}
 
 
-@app.post("/generate_test_cases_code")
+@app.post("/generate_test_cases_code_gemini")
 async def generate_code_for_test_cases_gemini(file: UploadFile = File(...),
                                        application_flow: str = Form(...),
                                        type_of_flow: str = Form(...),
@@ -464,7 +464,7 @@ class VisualTestingRequest(BaseModel):
     screen_type: str
     osType: str
 
-@app.post("/visual_testing")
+@app.post("/visual_testing_gemini")
 async def visual_testing_gemini(request: VisualTestingRequest):
     # print(request.testScreen)
     # print(request.screen_type)
@@ -499,7 +499,7 @@ async def visual_testing_gemini(request: VisualTestingRequest):
     # }}
 
 
-@app.post("/backend_tc_gen")
+@app.post("/backend_tc_gen_gemini")
 async def generate_test_cases_for_backend_gemini(request: BackendTestingRequest):
     print("curl", request.curl)
 
@@ -567,7 +567,7 @@ async def generate_test_cases_for_backend_gemini(request: BackendTestingRequest)
     return {"result": result.text}
 
 
-@app.post("/backend_tc_code_gen")
+@app.post("/backend_tc_code_gen_gemini")
 async def generate_test_cases_code_for_backend_gemini(request: BackendTestingRequest):
 
     PROMPT_MESSAGES = [
