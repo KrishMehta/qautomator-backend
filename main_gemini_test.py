@@ -8,7 +8,7 @@ video_file_path = "/Users/krish/Downloads/QAutomator.mov"
 
 start_time = time.time()
 with open(video_file_path, "rb") as file:
-    response = requests.post(f"{base_url}/func_flow/", files={"file": file})
+    response = requests.post(f"{base_url}/func_flow_gemini/", files={"file": file})
     response.raise_for_status()
     func_flow_result = response.json()["result"]
 end_time = time.time()
@@ -19,7 +19,7 @@ print(f"Step 1 Duration: {step_1_duration:.2f} seconds")
 start_time = time.time()
 with open(video_file_path, "rb") as file:
     response = requests.post(
-        f"{base_url}/generate_test_cases/",
+        f"{base_url}/generate_test_cases_gemini/",
         files={"file": file},
         data={"application_flow": func_flow_result, "type_of_flow": "scheduled flight status flow"}
     )
@@ -33,7 +33,7 @@ print(f"Step 2 Duration: {step_2_duration:.2f} seconds")
 start_time = time.time()
 with open(video_file_path, "rb") as file:
     response = requests.post(
-        f"{base_url}/generate_test_cases_code",
+        f"{base_url}/generate_test_cases_code_gemini",
         files={"file": file},
         data={
             "application_flow": func_flow_result,
