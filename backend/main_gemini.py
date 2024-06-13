@@ -53,7 +53,7 @@ with open('qautomate/screens_for_visual_testing.json', 'r') as f:
 
 
 @app.post("/func_flow/")
-async def generate_func_flow(file: UploadFile = File(...)):
+async def generate_func_flow_gemini(file: UploadFile = File(...)):
     print("inside generate_func_flow")
 
     with tempfile.NamedTemporaryFile(delete=False) as tmp:
@@ -101,7 +101,7 @@ async def generate_func_flow(file: UploadFile = File(...)):
 
 
 @app.post("/generate_test_cases/")
-async def generate_test_cases(file: UploadFile = File(...),
+async def generate_test_cases_gemini(file: UploadFile = File(...),
                               application_flow: str = Form(...),
                               type_of_flow: str = Form(...)
                               ):
@@ -177,7 +177,7 @@ async def generate_test_cases(file: UploadFile = File(...),
 
 
 @app.post("/generate_test_cases_code")
-async def generate_code_for_test_cases(file: UploadFile = File(...),
+async def generate_code_for_test_cases_gemini(file: UploadFile = File(...),
                                        application_flow: str = Form(...),
                                        type_of_flow: str = Form(...),
                                        test_cases_list: str = Form(...),
@@ -465,7 +465,7 @@ class VisualTestingRequest(BaseModel):
     osType: str
 
 @app.post("/visual_testing")
-async def visual_testing(request: VisualTestingRequest):
+async def visual_testing_gemini(request: VisualTestingRequest):
     # print(request.testScreen)
     # print(request.screen_type)
     # print(request.osType)
@@ -500,7 +500,7 @@ async def visual_testing(request: VisualTestingRequest):
 
 
 @app.post("/backend_tc_gen")
-async def generate_test_cases_for_backend(request: BackendTestingRequest):
+async def generate_test_cases_for_backend_gemini(request: BackendTestingRequest):
     print("curl", request.curl)
 
     PROMPT_MESSAGES = [
@@ -568,7 +568,7 @@ async def generate_test_cases_for_backend(request: BackendTestingRequest):
 
 
 @app.post("/backend_tc_code_gen")
-async def generate_test_cases_code_for_backend(request: BackendTestingRequest):
+async def generate_test_cases_code_for_backend_gemini(request: BackendTestingRequest):
 
     PROMPT_MESSAGES = [
         {
