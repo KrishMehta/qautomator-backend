@@ -3,7 +3,6 @@ from typing import List
 from fastapi import FastAPI, File, UploadFile, Form
 import cv2
 import base64
-from openai import OpenAI
 import os
 import tempfile
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,6 +13,8 @@ import multiprocessing
 from qautomate.helpers.visual_testing_helper import process_color_in_images, process_layout_in_images, visual_analyze, \
     process_text_in_images
 
+import google.generativeai as genai
+
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
@@ -22,12 +23,12 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
 )
-# Read the value of the environment variable
-openai_key = os.getenv('openai_key')
-if not openai_key:
-    raise ValueError("No OpenAI API key found in environment variable 'openai_key'")
 
-client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY", openai_key))
+gemini_key = os.getenv('gemini_key')
+if not gemini_key:
+    raise ValueError("No Gemini API key found in environment variable 'GOOGLE_API_KEY'")
+
+genai.configure(api_key=gemini_key)
 
 #
 # class TestCaseCodeGenRequest(BaseModel):
@@ -136,16 +137,15 @@ async def generate_func_flow(file: UploadFile = File(...)):
     ]
     print("no of frames", len(base64Frames))
     params = {
-        "model": "gpt-4o",
-        "messages": PROMPT_MESSAGES,
-        "max_tokens": 4096,
+        "model": "gemini-1.5-flash",
+        "prompt": PROMPT_MESSAGES,
+        "max_output_tokens": 4096,
         "temperature": 0.3,  # Lower temperature for more deterministic and precise responses
-        "top_p": 0.8,
     }
 
-    result = client.chat.completions.create(**params)
-    print("result", result.choices[0].message.content)
-    return {"result": result.choices[0].message.content}
+    result = genai.GenerativeModel('gemini-1.5-flash').generate_content(**params)
+    print("result", result.text)
+    return {"result": result.text}
 
 
 @app.post("/generate_test_cases/")
@@ -209,16 +209,15 @@ async def generate_test_cases(file: UploadFile = File(...),
     ]
 
     params = {
-        "model": "gpt-4o",
-        "messages": PROMPT_MESSAGES,
-        "max_tokens": 4096,
+        "model": "gemini-1.5-flash",
+        "prompt": PROMPT_MESSAGES,
+        "max_output_tokens": 4096,
         "temperature": 0.3,  # Lower temperature for more deterministic and precise responses
-        "top_p": 0.8,
     }
 
-    result = client.chat.completions.create(**params)
-    print("result", result.choices[0].message.content)
-    return {"result": result.choices[0].message.content}
+    result = genai.GenerativeModel('gemini-1.5-flash').generate_content(**params)
+    print("result", result.text)
+    return {"result": result.text}
 
 
 @app.post("/generate_test_cases_code")
@@ -352,105 +351,6 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
         },
     ]
 
-    # PROMPT_MESSAGES_FOR_IOS = [
-    #     {
-    #         "role": "user",
-    #         "content": [
-    #             f'''I have developed test cases for an iOS application based on the {type_of_flow} functionality.
-    #             Using the provided video frames, functional flow, the xpaths of UI elements, and test cases,
-    #             I need to generate Appium code in javascript with appropriate assertions and comments and automate the testing of this
-    #             specific functionality.
-    #
-    #             Note that widgets in the app can be EditText, TextView, Button or some other type, so use XPath given in the prompt
-    #             to locate these components. Make sure to use static UI elements not dependent on dynamic data from APIs.
-    #
-    #             Here are the key details:
-    #
-    #             ### Functional Flow:
-    #                     {application_flow}
-    #
-    #             ### Impacted Screens UI Element XPATHS to prepare testcases :
-    #                     {screen_data}
-    #             ### Test Cases:
-    #                     {test_cases_list}
-    #
-    #                 Example Appium Code for ios:
-    #
-    #                 def test_case_1(self):
-    #                     """
-    #                     Verify the "PNR Status" option is visible and selectable on the Home screen.
-    #                     Steps:
-    #                         1. Navigate to the Home screen.
-    #                         2. Locate the "PNR Status" button.
-    #                         3. Tap on the "PNR Status" button.
-    #                     Expected Outcome: User is navigated to the PNR Status screen.
-    #                     """
-    #                     # Wait for the Home screen to load and locate the "PNR Status" button
-    #                     WebDriverWait(self.driver, 10).until(
-    #                         EC.presence_of_element_located((MobileBy.XPATH, '//XCUIElementTypeStaticText[contains(@label, "PNR Status")]'))
-    #                     )
-    #                     pnr_status_button = self.driver.find_element(MobileBy.XPATH, '//XCUIElementTypeStaticText[contains(@label, "PNR Status")]')
-    #                     self.assertTrue(pnr_status_button.is_displayed())
-    #
-    #                     # Tap on the "PNR Status" button
-    #                     pnr_status_button.click()
-    #
-    #                     # Wait for the PNR Status screen to load
-    #                     WebDriverWait(self.driver, 10).until(
-    #                         EC.presence_of_element_located((MobileBy.XPATH, '//XCUIElementTypeTextField[contains(@value, "Enter your 10 digit PNR")]'))
-    #                     )
-    #                     self.validate_pnr_status_screen()
-    #                     self.assertTrue(self.driver.find_element(MobileBy.XPATH,
-    #                                                              '//XCUIElementTypeTextField[contains(@value, "Enter your 10 digit PNR")]').is_displayed())
-    #
-    #                 def test_case_2(self):
-    #                     """
-    #                     Verify user can enter a valid PNR number.
-    #                     Steps:
-    #                         1. Navigate to the PNR Status screen.
-    #                         2. Enter a valid 10-digit PNR number in the input field.
-    #                         3. Tap the "Search" button.
-    #                     Expected Outcome: The input field accepts the PNR number, and the user can tap the search button.
-    #                     """
-    #                     # Navigate to the PNR Status screen (same steps as Test Case 1)
-    #                     self.test_case_1()
-    #
-    #                     # Locate the PNR input field and enter a valid 10-digit PNR number
-    #                     pnr_input_field = self.driver.find_element(MobileBy.XPATH,
-    #                                                                '//XCUIElementTypeTextField[contains(@value, "Enter your 10 digit PNR")]')
-    #                     pnr_input_field.send_keys("1234567890")
-    #
-    #                     # Locate the "Search" button and tap on it
-    #                     search_button = self.driver.find_element(MobileBy.XPATH, '//XCUIElementTypeButton[contains(@label, "Search")]')
-    #                     search_button.click()
-    #
-    #                 def test_case_3(self):
-    #                     """
-    #                     Verify the application handles invalid PNR numbers.
-    #                     Steps:
-    #                         1. Enter an invalid or less than 10-digit PNR number.
-    #                     Expected Outcome: The search button should remain disabled.
-    #                     """
-    #                     # Navigate to the PNR Status screen (same steps as Test Case 1)
-    #                     self.test_case_1()
-    #
-    #                     # Locate the PNR input field and enter an invalid PNR number (less than 10 digits)
-    #                     pnr_input_field = self.driver.find_element(MobileBy.XPATH,
-    #                                                                '//XCUIElementTypeTextField[contains(@value, "Enter your 10 digit PNR")]')
-    #                     pnr_input_field.send_keys("12345")
-    #
-    #                     # Locate the "Search" button and tap on it
-    #                     search_button = self.driver.find_element(MobileBy.XPATH, '//XCUIElementTypeButton[contains(@label, "Search")]')
-    #                     # search_button.click()
-    #                     # Verify that the button is disabled
-    #                     self.assertFalse(search_button.is_enabled(), "The search button should be disabled for invalid PNR input")
-    #
-    #             These are frames from a video that I want to upload.''',
-    #             *map(lambda x: {"image": x, "resize": 768}, base64Frames),
-    #         ],
-    #     },
-    #
-
     PROMPT_MESSAGES_FOR_IOS = [
         {
             "role": "user",
@@ -571,16 +471,15 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
     # print(PROMPT_MESSAGES)
 
     params = {
-        "model": "gpt-4o",
-        "messages": PROMPT_MESSAGES_FOR_ANDROID if os_type == 'android' else PROMPT_MESSAGES_FOR_IOS,
-        "max_tokens": 4096,
+        "model": "gemini-1.5-flash",
+        "prompt": PROMPT_MESSAGES_FOR_ANDROID if os_type == 'android' else PROMPT_MESSAGES_FOR_IOS,
+        "max_output_tokens": 4096,
         "temperature": 0.3,  # Lower temperature for more deterministic and precise responses
-        "top_p": 0.8,
     }
 
-    result = client.chat.completions.create(**params)
-    print("result", result.choices[0].message.content)
-    return {"result": result.choices[0].message.content}
+    result = genai.GenerativeModel('gemini-1.5-flash').generate_content(**params)
+    print("result", result.text)
+    return {"result": result.text}
 
 
 class VisualTestingRequest(BaseModel):
@@ -601,6 +500,11 @@ def worker(args):
     func, original_image, test_screen = args
     return func(original_image, test_screen)
 
+
+class VisualTestingRequest(BaseModel):
+    testScreen: str
+    screen_type: str
+    osType: str
 
 @app.post("/visual_testing")
 async def visual_testing(request: VisualTestingRequest):
@@ -694,16 +598,15 @@ async def generate_test_cases_for_backend(request: BackendTestingRequest):
     ]
 
     params = {
-        "model": "gpt-4o",
-        "messages": PROMPT_MESSAGES,
-        "max_tokens": 4096,
+        "model": "gemini-1.5-flash",
+        "prompt": PROMPT_MESSAGES,
+        "max_output_tokens": 4096,
         "temperature": 0.3,  # Lower temperature for more deterministic and precise responses
-        "top_p": 0.8,
     }
 
-    result = client.chat.completions.create(**params)
-    print("result", result.choices[0].message.content)
-    return {"result": result.choices[0].message.content}
+    result = genai.GenerativeModel('gemini-1.5-flash').generate_content(**params)
+    print("result", result.text)
+    return {"result": result.text}
 
 
 @app.post("/backend_tc_code_gen")
@@ -788,16 +691,15 @@ async def generate_test_cases_code_for_backend(request: BackendTestingRequest):
     ]
 
     params = {
-        "model": "gpt-4o",
-        "messages": PROMPT_MESSAGES,
-        "max_tokens": 4096,
+        "model": "gemini-1.5-flash",
+        "prompt": PROMPT_MESSAGES,
+        "max_output_tokens": 4096,
         "temperature": 0.3,  # Lower temperature for more deterministic and precise responses
-        "top_p": 0.8,
     }
 
-    result = client.chat.completions.create(**params)
-    print("result", result.choices[0].message.content)
-    return {"result": result.choices[0].message.content}
+    result = genai.GenerativeModel('gemini-1.5-flash').generate_content(**params)
+    print("result", result.text)
+    return {"result": result.text}
 
 
 async def parse_video_to_frame(file):
