@@ -12,6 +12,7 @@ from qautomate.helpers.visual_testing_helper import process_color_in_images, pro
     process_text_in_images
 
 import google.generativeai as genai
+import time
 
 app = FastAPI()
 app.add_middleware(
@@ -60,12 +61,21 @@ async def generate_func_flow_gemini(file: UploadFile = File(...)):
         tmp.write(await file.read())
         video_path = tmp.name
 
+    # Upload the video file
+    video_file = genai.upload_file(path=video_path)
+    print(f"Completed upload: {video_file.uri}")
+
+    # Wait for the video file to be processed
+    while video_file.state.name == "PROCESSING":
+        print('.', end='')
+        time.sleep(10)
+        video_file = genai.get_file(video_file.name)
+
+    if video_file.state.name == "FAILED":
+        raise ValueError(video_file.state.name)
+
     # Prepare prompt messages
-    PROMPT_MESSAGES = [
-        {
-            "role": "user",
-            "content": [
-                '''I am testing an Android application using video analysis to understand its functionality of 
+    prompt = '''I am testing an Android application using video analysis to understand its functionality of 
                 {type_of_flow}. Specifically, I need to analyze the video to generate a detailed functionality flow based on user interactions, focusing on the static UI elements and predefined states.
 
                     Please follow these steps:
@@ -82,44 +92,44 @@ async def generate_func_flow_gemini(file: UploadFile = File(...)):
                     Focus: Capture the functionality flow based on user interactions as seen in the video of the application, 
                     concentrating on static UI elements and avoiding reliance on dynamic data. Each step should be clear and concise, 
                     capturing the essence of user actions and predictable app behavior.
-                     This is the video that I want to upload.''',
-                {"video": video_path}
-            ],
-        },
-    ]
+                    
+    This is the video that I want to upload.'''
 
-    params = {
-        "model": "gemini-1.5-flash",
-        "prompt": PROMPT_MESSAGES,
-        "max_output_tokens": 4096,
-        "temperature": 0.3,  # Lower temperature for more deterministic and precise responses
-    }
-
-    result = genai.GenerativeModel('gemini-1.5-flash').generate_content(**params)
+    model = genai.GenerativeModel(model_name="models/gemini-1.5-pro-latest")
+    result = model.generate_content([prompt, video_file.uri], request_options={"timeout": 600})
     print("result", result.text)
     return {"result": result.text}
 
 
 @app.post("/generate_test_cases_gemini/")
 async def generate_test_cases_gemini(file: UploadFile = File(...),
-                              application_flow: str = Form(...),
-                              type_of_flow: str = Form(...)
-                              ):
-
+                                     application_flow: str = Form(...),
+                                     type_of_flow: str = Form(...)):
     print("generating TCs")
 
     with tempfile.NamedTemporaryFile(delete=False) as tmp:
         tmp.write(await file.read())
         video_path = tmp.name
 
-    PROMPT_MESSAGES = [
-        {
-            "role": "user",
-            "content": [
-                f'''Based on the detailed functionality flow generated from the video,
+    # Upload the video file
+    video_file = genai.upload_file(path=video_path)
+    print(f"Completed upload: {video_file.uri}")
+
+    # Wait for the video file to be processed
+    while video_file.state.name == "PROCESSING":
+        print('.', end='')
+        time.sleep(10)
+        video_file = genai.get_file(video_file.name)
+
+    if video_file.state.name == "FAILED":
+        raise ValueError(video_file.state.name)
+
+    # Prepare prompt message
+    prompt = f'''Based on the detailed functionality flow generated from the video,
                 I need to create comprehensive UI-based test cases for the functionality of {type_of_flow}, based on the detailed functionality flow generated from the video.
 
                 Please make sure that the test cases are comprehensive, covering all possible scenarios as observed in the video, and have expected outcomes based on static UI elements in the video and not dependent on dynamic data from APIs.
+                
                 All Screens available {all_screens}
                 
                 ### Instructions:
@@ -158,31 +168,20 @@ async def generate_test_cases_gemini(file: UploadFile = File(...),
                       2. [Continue steps]
                     - **Expected Outcome:** [Specific expected results]
 
-                     This is the video that I want to upload.''',
-                {"video": video_path}
-            ],
-        },
-    ]
+    This is the video that I want to upload.'''
 
-    params = {
-        "model": "gemini-1.5-flash",
-        "prompt": PROMPT_MESSAGES,
-        "max_output_tokens": 4096,
-        "temperature": 0.3,  # Lower temperature for more deterministic and precise responses
-    }
-
-    result = genai.GenerativeModel('gemini-1.5-flash').generate_content(**params)
+    model = genai.GenerativeModel(model_name="models/gemini-1.5-pro-latest")
+    result = model.generate_content([prompt, video_file.uri], request_options={"timeout": 600})
     print("result", result.text)
     return {"result": result.text}
 
 
 @app.post("/generate_test_cases_code_gemini")
 async def generate_code_for_test_cases_gemini(file: UploadFile = File(...),
-                                       application_flow: str = Form(...),
-                                       type_of_flow: str = Form(...),
-                                       test_cases_list: str = Form(...),
-                                       os_type: str = Form(...),
-                                       ):
+                                              application_flow: str = Form(...),
+                                              type_of_flow: str = Form(...),
+                                              test_cases_list: str = Form(...),
+                                              os_type: str = Form(...)):
     print("TC list", test_cases_list)
     print("OS", os_type)
 
@@ -193,6 +192,19 @@ async def generate_code_for_test_cases_gemini(file: UploadFile = File(...),
     with tempfile.NamedTemporaryFile(delete=False) as tmp:
         tmp.write(await file.read())
         video_path = tmp.name
+
+    # Upload the video file
+    video_file = genai.upload_file(path=video_path)
+    print(f"Completed upload: {video_file.uri}")
+
+    # Wait for the video file to be processed
+    while video_file.state.name == "PROCESSING":
+        print('.', end='')
+        time.sleep(10)
+        video_file = genai.get_file(video_file.name)
+
+    if video_file.state.name == "FAILED":
+        raise ValueError(video_file.state.name)
 
     impacted_screens = set()
     for test_case in test_case_list_obj:
@@ -211,11 +223,7 @@ async def generate_code_for_test_cases_gemini(file: UploadFile = File(...),
     # print("Impacted Screens:", impacted_screens)
     print("Screen Data:", screen_data)
 
-    PROMPT_MESSAGES_FOR_ANDROID = [
-        {
-            "role": "user",
-            "content": [
-                f'''I have developed test cases for an Android application based on the {type_of_flow} functionality.
+    prompt_android = f'''I have developed test cases for an Android application based on the {type_of_flow} functionality.
                 Using the provided video, functional flow, the xpaths of UI elements, and test cases,
                 I need to generate Appium code with appropriate assertions and comments and automate the testing of this
                 specific functionality.
@@ -230,6 +238,7 @@ async def generate_code_for_test_cases_gemini(file: UploadFile = File(...),
 
                 ### Impacted Screens UI Element XPATHS to prepare testcases :
                         {screen_data}
+                        
                 ### Test Cases:
                         {test_cases_list}
 
@@ -303,17 +312,9 @@ async def generate_code_for_test_cases_gemini(file: UploadFile = File(...),
                         # Verify that the button is disabled
                         assert not search_button.is_enabled(), "The search button should be disabled for invalid PNR input"
 
-                This is the video that I want to upload.''',
-                {"video": video_path}
-            ],
-        },
-    ]
+    This is the video that I want to upload.'''
 
-    PROMPT_MESSAGES_FOR_IOS = [
-        {
-            "role": "user",
-            "content": [
-                f'''I have developed test cases for an iOS application based on the {type_of_flow} functionality.
+    prompt_ios = f'''I have developed test cases for an iOS application based on the {type_of_flow} functionality.
                 Using the provided video, functional flow, the xpaths of UI elements, and test cases,
                 I need to generate Appium code in JavaScript with appropriate assertions and comments and automate the testing of this
                 specific functionality.
@@ -328,6 +329,7 @@ async def generate_code_for_test_cases_gemini(file: UploadFile = File(...),
 
                 ### Impacted Screens UI Element XPATHS to prepare testcases :
                         {screen_data}
+                        
                 ### Test Cases:
                         {test_cases_list}
 
@@ -420,22 +422,15 @@ async def generate_code_for_test_cases_gemini(file: UploadFile = File(...),
                         }}
                     }}
 
-                This is the video that I want to upload.''',
-                {"video": video_path}
-            ],
-        },
-    ]
+    This is the video that I want to upload.'''
 
     # print(PROMPT_MESSAGES)
 
-    params = {
-        "model": "gemini-1.5-flash",
-        "prompt": PROMPT_MESSAGES_FOR_ANDROID if os_type == 'android' else PROMPT_MESSAGES_FOR_IOS,
-        "max_output_tokens": 4096,
-        "temperature": 0.3,  # Lower temperature for more deterministic and precise responses
-    }
-
-    result = genai.GenerativeModel('gemini-1.5-flash').generate_content(**params)
+    model = genai.GenerativeModel(model_name="models/gemini-1.5-pro-latest")
+    if os_type == 'android':
+        result = model.generate_content([prompt_android, video_file.uri], request_options={"timeout": 600})
+    else:
+        result = model.generate_content([prompt_ios, video_file.uri], request_options={"timeout": 600})
     print("result", result.text)
     return {"result": result.text}
 
@@ -458,11 +453,6 @@ def worker(args):
     func, original_image, test_screen = args
     return func(original_image, test_screen)
 
-
-class VisualTestingRequest(BaseModel):
-    testScreen: str
-    screen_type: str
-    osType: str
 
 @app.post("/visual_testing_gemini")
 async def visual_testing_gemini(request: VisualTestingRequest):
@@ -503,15 +493,12 @@ async def visual_testing_gemini(request: VisualTestingRequest):
 async def generate_test_cases_for_backend_gemini(request: BackendTestingRequest):
     print("curl", request.curl)
 
-    PROMPT_MESSAGES = [
-        {
-            "role": "user",
-            "content":
-                f'''Based on the functionality : {request.functionality}, the cURL request: {request.curl},
+    prompt = f'''Based on the functionality : {request.functionality}, the cURL request: {request.curl},
                 the success : {request.success_response} and the error response : {request.error_response}
                 I need to create comprehensive backend test cases so that each scenario can be validated.
 
                 Please make sure that the test cases are comprehensive, covering all possible scenarios.
+                
                 ### Instructions:
 
                 1. **Review the Functional Flow:**
@@ -527,7 +514,6 @@ async def generate_test_cases_for_backend_gemini(request: BackendTestingRequest)
                      - Detailed steps to execute the test, including HTTP method (GET, POST, PUT, DELETE), endpoint URL, headers, and request body.
                      - Specific input data required for the test case, such as query parameters, path variables, or JSON payloads.
                      - The expected outcome of the test, including status codes, response body structure, response headers, and any other relevant details.
-
 
                     Example Structure + Format:
 
@@ -552,17 +538,8 @@ async def generate_test_cases_for_backend_gemini(request: BackendTestingRequest)
                     - **Expected Result:** [The expected outcome of the test, including status codes, response body structure, response headers, and any other relevant details.]
                 '''
 
-        },
-    ]
-
-    params = {
-        "model": "gemini-1.5-flash",
-        "prompt": PROMPT_MESSAGES,
-        "max_output_tokens": 4096,
-        "temperature": 0.3,  # Lower temperature for more deterministic and precise responses
-    }
-
-    result = genai.GenerativeModel('gemini-1.5-flash').generate_content(**params)
+    model = genai.GenerativeModel(model_name="models/gemini-1.5-pro-latest")
+    result = model.generate_content(prompt, request_options={"timeout": 600})
     print("result", result.text)
     return {"result": result.text}
 
@@ -570,12 +547,9 @@ async def generate_test_cases_for_backend_gemini(request: BackendTestingRequest)
 @app.post("/backend_tc_code_gen_gemini")
 async def generate_test_cases_code_for_backend_gemini(request: BackendTestingRequest):
 
-    PROMPT_MESSAGES = [
-        {
-            "role": "user",
-            "content":
-                f'''I have developed test cases for by backend application based on the functionality : {request.functionality}, the cURL request: {request.curl},
+    prompt = f'''I have developed test cases for by backend application based on the functionality : {request.functionality}, the cURL request: {request.curl},
                 the success : {request.success_response} and the error response : {request.error_response}
+                
                 I need to generate java code for these test cases with appropriate assertions and comments and automate the testing of this
                 specific functionality.
 
@@ -645,16 +619,8 @@ async def generate_test_cases_code_for_backend_gemini(request: BackendTestingReq
         response.then().body("errors.code", equalTo(500));
         response.then().body("errors.message", equalTo("PNR No. is not valid"));
     }'''
-        },
-    ]
 
-    params = {
-        "model": "gemini-1.5-flash",
-        "prompt": PROMPT_MESSAGES,
-        "max_output_tokens": 4096,
-        "temperature": 0.3,  # Lower temperature for more deterministic and precise responses
-    }
-
-    result = genai.GenerativeModel('gemini-1.5-flash').generate_content(**params)
+    model = genai.GenerativeModel(model_name="models/gemini-1.5-pro-latest")
+    result = model.generate_content(prompt, request_options={"timeout": 600})
     print("result", result.text)
     return {"result": result.text}
