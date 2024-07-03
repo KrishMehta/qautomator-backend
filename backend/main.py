@@ -106,7 +106,7 @@ async def generate_func_flow(file: UploadFile = File(...)):
             "role": "user",
             "content": [
                 '''I am testing an Android application using video analysis to understand its functionality of 
-                {type_of_flow}. Specifically, I need to analyze the video frames of the application to generate a detailed functionality flow based on user interactions, focusing on the static UI elements and predefined states.
+                scheduled flight status flow. Specifically, I need to analyze the video frames of the application to generate a detailed functionality flow based on user interactions, focusing on the static UI elements and predefined states.
 
                     Please follow these steps:
 
