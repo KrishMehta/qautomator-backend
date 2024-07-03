@@ -63,7 +63,7 @@ async def generate_func_flow_gemini(file: UploadFile = File(...)):
 
     # Upload the video file
     print(f"Uploading file...")
-    video_file = genai.upload_file(path=video_path)
+    video_file = genai.upload_file(path=video_path, mime_type="video/mov")
     print(f"Completed upload: {video_file.uri}")
 
     # Wait for the video file to be processed
@@ -119,7 +119,7 @@ async def generate_test_cases_gemini(file: UploadFile = File(...),
 
     # Upload the video file
     print(f"Uploading file...")
-    video_file = genai.upload_file(path=video_path)
+    video_file = genai.upload_file(path=video_path, mime_type="video/mov")
     print(f"Completed upload: {video_file.uri}")
 
     # Wait for the video file to be processed
@@ -207,7 +207,7 @@ async def generate_code_for_test_cases_gemini(file: UploadFile = File(...),
 
     # Upload the video file
     print(f"Uploading file...")
-    video_file = genai.upload_file(path=video_path)
+    video_file = genai.upload_file(path=video_path, mime_type="video/mov")
     print(f"Completed upload: {video_file.uri}")
 
     # Wait for the video file to be processed
