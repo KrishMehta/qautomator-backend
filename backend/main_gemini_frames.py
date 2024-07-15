@@ -150,31 +150,12 @@ async def generate_test_cases_gemini(file: UploadFile = File(...),
                                      application_flow: str = Form(...),
                                      type_of_flow: str = Form(...)):
     print("generating TCs")
-
-    with tempfile.NamedTemporaryFile(delete=False) as tmp:
-        tmp.write(await file.read())
-        video_path = tmp.name
-
-    # Upload the video file
-    print(f"Uploading file...")
-    video_file = genai.upload_file(path=video_path, mime_type="video/mov")
-    print(f"Completed upload: {video_file.uri}")
-
-    # Wait for the video file to be processed
-    while video_file.state.name == "PROCESSING":
-        print('.', end='')
-        time.sleep(10)
-        video_file = genai.get_file(video_file.name)
-
-    if video_file.state.name == "FAILED":
-        raise ValueError(video_file.state.name)
-
+    base64Frames = await capture_frames_at_intervals(file, 1000)
     # Create the prompt
-    prompt = f'''Based on the detailed functionality flow generated from the video,
-                I need to create comprehensive UI-based test cases for the functionality of {type_of_flow}, based on the detailed functionality flow generated from the video.
+    prompt = f'''Based on the detailed functionality flow generated from the video frames,
+                I need to create comprehensive UI-based test cases for the functionality of {type_of_flow}, based on the detailed functionality flow generated from the video frames.
 
-                Please make sure that the test cases are comprehensive, covering all possible scenarios as observed in the video, and have expected outcomes based on static UI elements in the video and not dependent on dynamic data from APIs.
-                
+                Please make sure that the test cases are comprehensive, covering all possible scenarios as observed in the video frames, and have expected outcomes based on static UI elements in the video frames and not dependent on dynamic data from APIs.
                 All Screens available {all_screens}
                 
                 ### Instructions:
@@ -190,7 +171,7 @@ async def generate_test_cases_gemini(file: UploadFile = File(...),
                    - Ensure each test case includes:
                      - A clear and specific description of the test case
                      - Attach the impacted screen names along with it.
-                     - Step-by-step instructions based on observed interactions in the video
+                     - Step-by-step instructions based on observed interactions in the video frames
                      - Specific and measurable expected outcomes based solely on static UI elements (e.g., presence of buttons, input fields, labels)
                      - Identification of edge cases and potential user errors (e.g., incorrect inputs, system errors)
 
@@ -213,14 +194,14 @@ async def generate_test_cases_gemini(file: UploadFile = File(...),
                       2. [Continue steps]
                     - **Expected Outcome:** [Specific expected results]
 
-    This is the video that I want to upload.'''
+    These are frames from a video that I want to upload.'''
 
     # Set the model to Gemini 1.5 Pro.
     model = genai.GenerativeModel(model_name="models/gemini-1.5-pro-latest")
 
     # Make the LLM request.
     print("Making LLM inference request...")
-    response = model.generate_content([prompt, video_file],
+    response = model.generate_content([prompt, base64Frames],
                                       request_options={"timeout": 600})
     print("result", response.text)
     return {"result": response.text}
