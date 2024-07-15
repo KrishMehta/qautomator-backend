@@ -137,6 +137,10 @@ async def generate_func_flow_gemini(file: UploadFile = File(...)):
     print("Making LLM inference request...")
     response = model.generate_content([prompt, base64Frames],
                                       request_options={"timeout": 600})
+
+    total_tokens = response.usage_metadata.total_token_count
+    print("Total tokens used", total_tokens)
+
     print("result", response.text)
     return {"result": response.text}
 
