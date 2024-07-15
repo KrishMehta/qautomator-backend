@@ -286,6 +286,7 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
 
                 ### Impacted Screens UI Element XPATHS to prepare testcases :
                         {screen_data}
+                        
                 ### Test Cases:
                         {test_cases_list}
 
@@ -384,6 +385,7 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
 
                 ### Impacted Screens UI Element XPATHS to prepare testcases :
                         {screen_data}
+                        
                 ### Test Cases:
                         {test_cases_list}
 
@@ -631,13 +633,11 @@ async def generate_test_cases_for_backend(request: BackendTestingRequest):
     print(f"Total tokens used: {total_tokens}")
     print(f"Estimated cost: ${total_cost:.2f}")
 
-
     return {"result": result.choices[0].message.content}
 
 
 @app.post("/backend_tc_code_gen")
 async def generate_test_cases_code_for_backend(request: BackendTestingRequest):
-
     PROMPT_MESSAGES = [
         {
             "role": "user",
