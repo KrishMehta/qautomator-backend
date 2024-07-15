@@ -98,7 +98,7 @@ async def capture_frames_at_intervals(video_file, interval_ms=1000):
 @app.post("/func_flow/")
 async def generate_func_flow(file: UploadFile = File(...)):
     print("inside generate_func_flow")
-    base64Frames = await capture_frames_at_intervals(file, 300);
+    base64Frames = await capture_frames_at_intervals(file, 1000);
 
     # Prepare prompt messages
     PROMPT_MESSAGES = [
@@ -155,7 +155,7 @@ async def generate_test_cases(file: UploadFile = File(...),
                               ):
 
     print("generating TCs")
-    base64Frames = await capture_frames_at_intervals(file, 300)
+    base64Frames = await capture_frames_at_intervals(file, 1000)
     PROMPT_MESSAGES = [
         {
             "role": "user",
@@ -235,7 +235,7 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
 
     test_case_list_obj = json.loads(test_cases_list)
 
-    base64Frames = await capture_frames_at_intervals(file, 300)
+    base64Frames = await capture_frames_at_intervals(file, 1000)
 
     impacted_screens = set()
     for test_case in test_case_list_obj:
