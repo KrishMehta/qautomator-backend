@@ -89,6 +89,11 @@ async def generate_func_flow_gemini(file: UploadFile = File(...)):
                        - Provide a detailed flow of the feature based on the observed interactions in the video.
                        - Clearly depict each step, including relevant conditions or branching logic triggered by user interactions or predictable system responses.
                        - Ensure that each step is described in the order it occurs, emphasizing static elements like buttons, input fields, labels, and predefined messages.
+                       
+                    **Functional Flow:**
+                    - Step 1: [Description of user interaction and initial state, e.g., "User launches the app and observes the splash screen."]
+                    - Step 2: [Description of subsequent interaction and app response, focusing on static elements, e.g., "User navigates to the main screen and sees options for Trains, Flights, Buses, and Hotels."]
+                    - Step 3: [Repeat for each step observed, describing user interactions and static components only.]
 
                     Focus: Capture the functionality flow based on user interactions as seen in the video of the application, 
                     concentrating on static UI elements and avoiding reliance on dynamic data. Each step should be clear and concise, 
