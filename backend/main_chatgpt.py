@@ -160,7 +160,6 @@ async def generate_test_cases(file: UploadFile = File(...),
                               application_flow: str = Form(...),
                               type_of_flow: str = Form(...)
                               ):
-
     print("generating TCs")
     base64Frames = await capture_frames_at_intervals(file, 1000)
     PROMPT_MESSAGES = [
