@@ -4,7 +4,7 @@ services:
   main_app:
     build:
       context: .
-      dockerfile: Dockerfile.main.main
+      dockerfile: Dockerfile.main.chatgpt
     ports:
       - "8000:8000"
     depends_on:
