@@ -1,10 +1,8 @@
-version: '3.8'
-
 services:
   main_app:
     build:
       context: .
-      dockerfile: Dockerfile.main.chatgpt
+      dockerfile: Dockerfile.chatgpt
     ports:
       - "8000:8000"
     depends_on:
@@ -13,7 +11,7 @@ services:
   gemini_app:
     build:
       context: .
-      dockerfile: Dockerfile.main.gemini
+      dockerfile: Dockerfile.gemini
     ports:
       - "8001:8000"
     depends_on:
