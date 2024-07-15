@@ -224,23 +224,7 @@ async def generate_code_for_test_cases_gemini(file: UploadFile = File(...),
 
     test_case_list_obj = json.loads(test_cases_list)
 
-    with tempfile.NamedTemporaryFile(delete=False) as tmp:
-        tmp.write(await file.read())
-        video_path = tmp.name
-
-    # Upload the video file
-    print(f"Uploading file...")
-    video_file = genai.upload_file(path=video_path, mime_type="video/mov")
-    print(f"Completed upload: {video_file.uri}")
-
-    # Wait for the video file to be processed
-    while video_file.state.name == "PROCESSING":
-        print('.', end='')
-        time.sleep(10)
-        video_file = genai.get_file(video_file.name)
-
-    if video_file.state.name == "FAILED":
-        raise ValueError(video_file.state.name)
+    base64Frames = await capture_frames_at_intervals(file, 1000)
 
     impacted_screens = set()
     for test_case in test_case_list_obj:
@@ -261,7 +245,7 @@ async def generate_code_for_test_cases_gemini(file: UploadFile = File(...),
 
     # Create the prompt
     prompt_android = f'''I have developed test cases for an Android application based on the {type_of_flow} functionality.
-                Using the provided video, functional flow, the xpaths of UI elements, and test cases,
+                Using the provided video frames, functional flow, the xpaths of UI elements, and test cases,
                 I need to generate Appium code with appropriate assertions and comments and automate the testing of this
                 specific functionality.
 
@@ -349,11 +333,11 @@ async def generate_code_for_test_cases_gemini(file: UploadFile = File(...),
                         # Verify that the button is disabled
                         assert not search_button.is_enabled(), "The search button should be disabled for invalid PNR input"
 
-    This is the video that I want to upload.'''
+    These are frames from a video that I want to upload.'''
 
     # Create the prompt
     prompt_ios = f'''I have developed test cases for an iOS application based on the {type_of_flow} functionality.
-                Using the provided video, functional flow, the xpaths of UI elements, and test cases,
+                Using the provided video frames, functional flow, the xpaths of UI elements, and test cases,
                 I need to generate Appium code in JavaScript with appropriate assertions and comments and automate the testing of this
                 specific functionality.
 
@@ -460,7 +444,7 @@ async def generate_code_for_test_cases_gemini(file: UploadFile = File(...),
                         }}
                     }}
 
-    This is the video that I want to upload.'''
+    These are frames from a video that I want to upload.'''
 
     # print(PROMPT_MESSAGES)
 
@@ -470,10 +454,10 @@ async def generate_code_for_test_cases_gemini(file: UploadFile = File(...),
     # Make the LLM request.
     print("Making LLM inference request...")
     if os_type == 'android':
-        response = model.generate_content([prompt_android, video_file],
+        response = model.generate_content([prompt_android, base64Frames],
                                           request_options={"timeout": 600})
     else:
-        response = model.generate_content([prompt_ios, video_file],
+        response = model.generate_content([prompt_ios, base64Frames],
                                           request_options={"timeout": 600})
     print("result", response.text)
     return {"result": response.text}
