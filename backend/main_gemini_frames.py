@@ -204,6 +204,10 @@ async def generate_test_cases_gemini(file: UploadFile = File(...),
     response = model.generate_content([prompt, base64Frames],
                                       request_options={"timeout": 600})
     print("result", response.text)
+
+    total_tokens = response.usage_metadata.total_token_count
+    print("Total tokens used", total_tokens)
+
     return {"result": response.text}
 
 
