@@ -99,7 +99,7 @@ async def capture_frames_at_intervals(video_file, interval_ms=1000):
 async def generate_func_flow(file: UploadFile = File(...)):
     print("inside generate_func_flow")
     base64Frames = await capture_frames_at_intervals(file, 1000);
-
+    print("no of frames", len(base64Frames))
     # Prepare prompt messages
     PROMPT_MESSAGES = [
         {
@@ -135,7 +135,6 @@ async def generate_func_flow(file: UploadFile = File(...)):
             ],
         },
     ]
-    print("no of frames", len(base64Frames))
     params = {
         "model": "gpt-4o",
         "messages": PROMPT_MESSAGES,

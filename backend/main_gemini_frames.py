@@ -101,7 +101,7 @@ async def capture_frames_at_intervals(video_file, interval_ms=1000):
 async def generate_func_flow_gemini(file: UploadFile = File(...)):
     print("inside generate_func_flow")
     base64Frames = await capture_frames_at_intervals(file, 1000);
-
+    print("no of frames", len(base64Frames))
     # Create the prompt
     prompt = '''I am testing an Android application using video analysis to understand its functionality of 
                 scheduled flight status flow. Specifically, I need to analyze the video frames of the application to generate a detailed functionality flow based on user interactions, focusing on the static UI elements and predefined states.
