@@ -145,6 +145,13 @@ async def generate_func_flow(file: UploadFile = File(...)):
 
     result = client.chat.completions.create(**params)
     print("result", result.choices[0].message.content)
+
+    total_tokens = result.usage.total_tokens
+    total_cost = total_tokens / 1000 * 0.015
+
+    print(f"Total tokens used: {total_tokens}")
+    print(f"Estimated cost: ${total_cost:.2f}")
+
     return {"result": result.choices[0].message.content}
 
 
@@ -218,6 +225,13 @@ async def generate_test_cases(file: UploadFile = File(...),
 
     result = client.chat.completions.create(**params)
     print("result", result.choices[0].message.content)
+
+    total_tokens = result.usage.total_tokens
+    total_cost = total_tokens / 1000 * 0.015
+
+    print(f"Total tokens used: {total_tokens}")
+    print(f"Estimated cost: ${total_cost:.2f}")
+
     return {"result": result.choices[0].message.content}
 
 
@@ -580,6 +594,13 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
 
     result = client.chat.completions.create(**params)
     print("result", result.choices[0].message.content)
+
+    total_tokens = result.usage.total_tokens
+    total_cost = total_tokens / 1000 * 0.015
+
+    print(f"Total tokens used: {total_tokens}")
+    print(f"Estimated cost: ${total_cost:.2f}")
+
     return {"result": result.choices[0].message.content}
 
 
@@ -703,6 +724,14 @@ async def generate_test_cases_for_backend(request: BackendTestingRequest):
 
     result = client.chat.completions.create(**params)
     print("result", result.choices[0].message.content)
+
+    total_tokens = result.usage.total_tokens
+    total_cost = total_tokens / 1000 * 0.015
+
+    print(f"Total tokens used: {total_tokens}")
+    print(f"Estimated cost: ${total_cost:.2f}")
+
+
     return {"result": result.choices[0].message.content}
 
 
@@ -797,6 +826,13 @@ async def generate_test_cases_code_for_backend(request: BackendTestingRequest):
 
     result = client.chat.completions.create(**params)
     print("result", result.choices[0].message.content)
+
+    total_tokens = result.usage.total_tokens
+    total_cost = total_tokens / 1000 * 0.015
+
+    print(f"Total tokens used: {total_tokens}")
+    print(f"Estimated cost: ${total_cost:.2f}")
+
     return {"result": result.choices[0].message.content}
 
 
