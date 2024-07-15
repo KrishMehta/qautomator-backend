@@ -100,52 +100,42 @@ async def capture_frames_at_intervals(video_file, interval_ms=1000):
 @app.post("/func_flow_gemini/")
 async def generate_func_flow_gemini(file: UploadFile = File(...)):
     print("inside generate_func_flow")
-
-    with tempfile.NamedTemporaryFile(delete=False) as tmp:
-        tmp.write(await file.read())
-        video_path = tmp.name
-
-    # Upload the video file
-    print(f"Uploading file...")
-    video_file = genai.upload_file(path=video_path, mime_type="video/mov")
-    print(f"Completed upload: {video_file.uri}")
-
-    # Wait for the video file to be processed
-    while video_file.state.name == "PROCESSING":
-        print('.', end='')
-        time.sleep(10)
-        video_file = genai.get_file(video_file.name)
-
-    if video_file.state.name == "FAILED":
-        raise ValueError(video_file.state.name)
+    base64Frames = await capture_frames_at_intervals(file, 1000);
 
     # Create the prompt
     prompt = '''I am testing an Android application using video analysis to understand its functionality of 
-                scheduled flight status flow. Specifically, I need to analyze the video to generate a detailed functionality flow based on user interactions, focusing on the static UI elements and predefined states.
+                scheduled flight status flow. Specifically, I need to analyze the video frames of the application to generate a detailed functionality flow based on user interactions, focusing on the static UI elements and predefined states.
 
                     Please follow these steps:
 
-                    1. **Analyze the Video:**
-                       - Observe the video to identify the sequence of user interactions with the application.
+                    1. **Analyze the Video Frames:**
+                       - Observe the video frames to identify the sequence of user interactions with the application.
                        - Note down each step in detail, including any screen transitions, user inputs, and system responses, focusing on static UI elements and not on dynamic data from API responses.
 
                     2. **Generate the Functional Flow:**
-                       - Provide a detailed flow of the feature based on the observed interactions in the video.
+                       - Provide a detailed flow of the feature based on the observed interactions in the video frames.
                        - Clearly depict each step, including relevant conditions or branching logic triggered by user interactions or predictable system responses.
                        - Ensure that each step is described in the order it occurs, emphasizing static elements like buttons, input fields, labels, and predefined messages.
 
-                    Focus: Capture the functionality flow based on user interactions as seen in the video of the application, 
+                    Example Structure:
+
+                    **Functional Flow:**
+                    - Step 1: [Description of user interaction and initial state, e.g., "User launches the app and observes the splash screen."]
+                    - Step 2: [Description of subsequent interaction and app response, focusing on static elements, e.g., "User navigates to the main screen and sees options for Trains, Flights, Buses, and Hotels."]
+                    - Step 3: [Repeat for each step observed, describing user interactions and static components only.]
+
+                    Focus: Capture the functionality flow based on user interactions as seen in the video frames of the application, 
                     concentrating on static UI elements and avoiding reliance on dynamic data. Each step should be clear and concise, 
                     capturing the essence of user actions and predictable app behavior.
                     
-    This is the video that I want to upload.'''
+    These are frames from a video that I want to upload.'''
 
     # Set the model to Gemini 1.5 Pro.
     model = genai.GenerativeModel(model_name="models/gemini-1.5-pro-latest")
 
     # Make the LLM request.
     print("Making LLM inference request...")
-    response = model.generate_content([prompt, video_file],
+    response = model.generate_content([prompt, base64Frames],
                                       request_options={"timeout": 600})
     print("result", response.text)
     return {"result": response.text}
