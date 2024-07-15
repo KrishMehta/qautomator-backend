@@ -129,7 +129,8 @@ async def generate_func_flow(file: UploadFile = File(...)):
                     Focus: Capture the functionality flow based on user interactions as seen in the video frames of the application, 
                     concentrating on static UI elements and avoiding reliance on dynamic data. Each step should be clear and concise, 
                     capturing the essence of user actions and predictable app behavior.
-                     These are frames from a video that I want to upload.''',
+                    
+                    These are frames from a video that I want to upload.''',
                 *map(lambda x: {"image": x, "resize": 768}, base64Frames),
             ],
         },
