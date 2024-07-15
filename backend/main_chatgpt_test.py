@@ -15,6 +15,7 @@ end_time = time.time()
 step_1_duration = end_time - start_time
 print("Step 1 Result:", func_flow_result)
 print(f"Step 1 Duration: {step_1_duration:.2f} seconds")
+print("\n")
 
 start_time = time.time()
 with open(video_file_path, "rb") as file:
@@ -29,6 +30,7 @@ end_time = time.time()
 step_2_duration = end_time - start_time
 print("Step 2 Result:", test_cases_result)
 print(f"Step 2 Duration: {step_2_duration:.2f} seconds")
+print("\n")
 
 start_time = time.time()
 with open(video_file_path, "rb") as file:
@@ -48,3 +50,4 @@ end_time = time.time()
 step_3_duration = end_time - start_time
 print("Step 3 Result:", test_cases_code_result)
 print(f"Step 3 Duration: {step_3_duration:.2f} seconds")
+print("\n")
