@@ -97,7 +97,7 @@ async def capture_frames_at_intervals(video_file, interval_ms=1000):
         video.release()
 
 
-@app.post("/func_flow_gemini/")
+@app.post("/func_flow_gemini_frames/")
 async def generate_func_flow_gemini(file: UploadFile = File(...)):
     print("inside generate_func_flow")
     base64Frames = await capture_frames_at_intervals(file, 1000);
@@ -145,7 +145,7 @@ async def generate_func_flow_gemini(file: UploadFile = File(...)):
     return {"result": response.text}
 
 
-@app.post("/generate_test_cases_gemini/")
+@app.post("/generate_test_cases_gemini_frames/")
 async def generate_test_cases_gemini(file: UploadFile = File(...),
                                      application_flow: str = Form(...),
                                      type_of_flow: str = Form(...)):
@@ -211,7 +211,7 @@ async def generate_test_cases_gemini(file: UploadFile = File(...),
     return {"result": response.text}
 
 
-@app.post("/generate_test_cases_code_gemini")
+@app.post("/generate_test_cases_code_gemini_frames")
 async def generate_code_for_test_cases_gemini(file: UploadFile = File(...),
                                               application_flow: str = Form(...),
                                               type_of_flow: str = Form(...),
@@ -486,7 +486,7 @@ def worker(args):
     return func(original_image, test_screen)
 
 
-@app.post("/visual_testing_gemini")
+@app.post("/visual_testing_gemini_frames")
 async def visual_testing_gemini(request: VisualTestingRequest):
     # print(request.testScreen)
     # print(request.screen_type)
@@ -521,7 +521,7 @@ async def visual_testing_gemini(request: VisualTestingRequest):
     # }}
 
 
-@app.post("/backend_tc_gen_gemini")
+@app.post("/backend_tc_gen_gemini_frames")
 async def generate_test_cases_for_backend_gemini(request: BackendTestingRequest):
     print("curl", request.curl)
 
@@ -582,7 +582,7 @@ async def generate_test_cases_for_backend_gemini(request: BackendTestingRequest)
     return {"result": response.text}
 
 
-@app.post("/backend_tc_code_gen_gemini")
+@app.post("/backend_tc_code_gen_gemini_frames")
 async def generate_test_cases_code_for_backend_gemini(request: BackendTestingRequest):
     # Create the prompt
     prompt = f'''I have developed test cases for by backend application based on the functionality : {request.functionality}, the cURL request: {request.curl},
