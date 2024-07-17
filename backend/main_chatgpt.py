@@ -3,6 +3,7 @@ from typing import List
 from fastapi import FastAPI, File, UploadFile, Form
 import cv2
 import base64
+import numpy as np
 from openai import OpenAI
 import os
 import tempfile
@@ -51,6 +52,65 @@ with open('qautomate/screen_ui_elements_map_ios.json', 'r') as f:
 
 with open('qautomate/screens_for_visual_testing.json', 'r') as f:
     visual_testing_images = json.load(f)
+
+
+async def capture_frames_grid_at_intervals(video_file, interval_ms=1000):
+    try:
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            tmp.write(await video_file.read())
+            tmp_path = tmp.name
+
+        video = cv2.VideoCapture(tmp_path)
+
+        if not video.isOpened():
+            raise IOError(f"Error: Could not open video file {tmp_path}")
+
+        # Get video properties
+        fps = video.get(cv2.CAP_PROP_FPS)  # Frame rate
+        total_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+        duration_ms = int((total_frames / fps) * 1000)  # Total duration in milliseconds
+
+        print(f"Video FPS: {fps}")
+        print(f"Total frames: {total_frames}")
+        print(f"Estimated duration (milliseconds): {duration_ms}")
+
+        frames = []
+        frame_count = 0
+
+        for ms in range(0, duration_ms + 1, interval_ms):  # Include the last frame
+            video.set(cv2.CAP_PROP_POS_MSEC, ms)  # Set the position of the video in milliseconds
+            success, frame = video.read()
+            if success:
+                frames.append(frame)
+                frame_count += 1
+            else:
+                print(f"Warning: Frame at {ms} ms could not be read.")
+
+        print(f"{frame_count} frames read (every {interval_ms} ms).")
+
+        grid_size = int(np.ceil(np.sqrt(len(frames))))
+        frame_height, frame_width, _ = frames[0].shape
+
+        collage_height = grid_size * frame_height
+        collage_width = grid_size * frame_width
+        collage = np.zeros((collage_height, collage_width, 3), dtype=np.uint8)
+
+        for idx, frame in enumerate(frames):
+            row = idx // grid_size
+            col = idx % grid_size
+            y = row * frame_height
+            x = col * frame_width
+            collage[y:y + frame_height, x:x + frame_width] = frame
+
+        _, buffer = cv2.imencode(".jpg", collage)
+        base64Collage = base64.b64encode(buffer).decode("utf-8")
+
+        return base64Collage
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+    finally:
+        video.release()
 
 
 async def capture_frames_at_intervals(video_file, interval_ms=1000):
