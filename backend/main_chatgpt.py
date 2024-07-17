@@ -102,7 +102,12 @@ async def capture_frames_at_intervals_grid(video_file, interval_ms=1000):
             x = col * frame_width
             collage[y:y + frame_height, x:x + frame_width] = frame
 
-        _, buffer = cv2.imencode(".jpg", collage)
+        # Resize the collage to the specified width
+        max_width = 768
+        scaling_factor = max_width / collage_width
+        resized_collage = cv2.resize(collage, (max_width, int(collage_height * scaling_factor)))
+
+        _, buffer = cv2.imencode(".jpg", resized_collage)
         base64Collage = base64.b64encode(buffer).decode("utf-8")
 
         return base64Collage
