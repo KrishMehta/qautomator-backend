@@ -54,7 +54,7 @@ with open('qautomate/screens_for_visual_testing.json', 'r') as f:
     visual_testing_images = json.load(f)
 
 
-async def capture_frames_grid_at_intervals(video_file, interval_ms=1000):
+async def capture_frames_at_intervals_grid(video_file, interval_ms=1000):
     try:
         with tempfile.NamedTemporaryFile(delete=False) as tmp:
             tmp.write(await video_file.read())
