@@ -160,6 +160,77 @@ async def capture_frames_at_intervals(video_file, interval_ms=1000):
         video.release()
 
 
+@app.post("/func_flow_grid/")
+async def generate_func_flow_grid(file: UploadFile = File(...)):
+    print("inside generate_func_flow_grid")
+    base64Collage = await capture_frames_at_intervals_grid(file, 1000)
+
+    # Prepare prompt messages
+    PROMPT_MESSAGES = [
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": '''I am testing an Android application using video analysis to understand its functionality of 
+                    scheduled flight status flow. Specifically, I need to analyze the video frames of the application to generate a detailed functionality flow based on user interactions, focusing on the static UI elements and predefined states.
+                
+                    The video frames have been captured and arranged into a collage image. The collage should be read from left to right and top to bottom. Each row of the collage represents a sequence of frames captured at regular intervals.
+                
+                    Please follow these steps:
+                
+                    1. **Analyze the Collage:**
+                       - Observe the collage image to identify the sequence of user interactions with the application.
+                       - Note down each step in detail, including any screen transitions, user inputs, and system responses, focusing on static UI elements and not on dynamic data from API responses.
+                
+                    2. **Generate the Functional Flow:**
+                       - Provide a detailed flow of the feature based on the observed interactions in the collage.
+                       - Clearly depict each step, including relevant conditions or branching logic triggered by user interactions or predictable system responses.
+                       - Ensure that each step is described in the order it occurs, emphasizing static elements like buttons, input fields, labels, and predefined messages.
+                
+                    Example Structure:
+                
+                    **Functional Flow:**
+                    - Step 1: [Description of user interaction and initial state, e.g., "User launches the app and observes the splash screen."]
+                    - Step 2: [Description of subsequent interaction and app response, focusing on static elements, e.g., "User navigates to the main screen and sees options for Trains, Flights, Buses, and Hotels."]
+                    - Step 3: [Repeat for each step observed, describing user interactions and static components only.]
+                
+                    Focus: Capture the functionality flow based on user interactions as seen in the collage, 
+                    concentrating on static UI elements and avoiding reliance on dynamic data. Each step should be clear and concise, 
+                    capturing the essence of user actions and predictable app behavior.
+                
+                    This is a collage of frames from a video that I want to upload.'''
+                },
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/jpeg;base64,{base64Collage}"
+                    }
+                }
+            ],
+        },
+    ]
+
+    params = {
+        "model": "gpt-4o",
+        "messages": PROMPT_MESSAGES,
+        "max_tokens": 4096,
+        "temperature": 0.3,  # Lower temperature for more deterministic and precise responses
+        "top_p": 0.8,
+    }
+
+    result = client.chat.completions.create(**params)
+    print("result", result.choices[0].message.content)
+
+    total_tokens = result.usage.total_tokens
+    total_cost = total_tokens / 1000 * 0.015
+
+    print(f"Total tokens used: {total_tokens}")
+    print(f"Estimated cost: ${total_cost:.2f}")
+
+    return {"result": result.choices[0].message.content}
+
+
 @app.post("/func_flow/")
 async def generate_func_flow(file: UploadFile = File(...)):
     print("inside generate_func_flow")
