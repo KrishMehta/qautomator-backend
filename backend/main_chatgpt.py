@@ -291,6 +291,94 @@ async def generate_func_flow(file: UploadFile = File(...)):
     return {"result": result.choices[0].message.content}
 
 
+@app.post("/generate_test_cases_grid/")
+async def generate_test_cases_grid(file: UploadFile = File(...),
+                              application_flow: str = Form(...),
+                              type_of_flow: str = Form(...)
+                              ):
+    print("generating TCs")
+    base64Collage = await capture_frames_at_intervals_grid(file, 1000)
+
+    PROMPT_MESSAGES = [
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": f'''Based on the detailed functionality flow generated from the video frames,
+                    I need to create comprehensive UI-based test cases for the functionality of {type_of_flow}, based on the detailed functionality flow generated from the video frames.
+
+                    Please make sure that the test cases are comprehensive, covering all possible scenarios as observed in the video frames, and have expected outcomes based on static UI elements in the video frames and not dependent on dynamic data from APIs.
+                    All Screens available {all_screens}
+                    
+                    ### Instructions:
+
+                    1. **Review the Functional Flow:**
+                       - Carefully review the functionality flow generated from the video analysis.
+                       - Understand each interaction and the corresponding system response.
+                       - Focus on the static UI elements involved in each interaction (e.g., buttons, input fields, labels) rather than dynamic content.
+                        {application_flow}
+
+                    2. **Generate Test Cases:**
+                       - Create detailed UI test cases for each interaction with the application.
+                       - Ensure each test case includes:
+                         - A clear and specific description of the test case
+                         - Attach the impacted screen names along with it.
+                         - Step-by-step instructions based on observed interactions in the video frames
+                         - Specific and measurable expected outcomes based solely on static UI elements (e.g., presence of buttons, input fields, labels)
+                         - Identification of edge cases and potential user errors (e.g., incorrect inputs, system errors)
+
+
+                        Example Structure:
+
+                        **Test Case 1:**
+                        - **Description:** [Detailed description of the test case]
+                        - **Impacted Screens:** [screen1, screen2]
+                        - **Steps:**
+                          1. [Step-by-step instructions]
+                          2. [Continue steps as necessary]
+                        - **Expected Outcome:** [Specific expected results that can be validated using UI elements]
+
+                        **Test Case 2:**
+                        - **Description:** [Another detailed description]
+                        - **Impacted Screens:** [screen1]
+                        - **Steps:**
+                          1. [Step-by-step instructions]
+                          2. [Continue steps]
+                        - **Expected Outcome:** [Specific expected results]
+
+                         This is a collage of frames from a video that I want to upload.'''
+                },
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/jpeg;base64,{base64Collage}"
+                    }
+                }
+            ],
+        },
+    ]
+
+    params = {
+        "model": "gpt-4o",
+        "messages": PROMPT_MESSAGES,
+        "max_tokens": 4096,
+        "temperature": 0.3,  # Lower temperature for more deterministic and precise responses
+        "top_p": 0.8,
+    }
+
+    result = client.chat.completions.create(**params)
+    print("result", result.choices[0].message.content)
+
+    total_tokens = result.usage.total_tokens
+    total_cost = total_tokens / 1000 * 0.015
+
+    print(f"Total tokens used: {total_tokens}")
+    print(f"Estimated cost: ${total_cost:.2f}")
+
+    return {"result": result.choices[0].message.content}
+
+
 @app.post("/generate_test_cases/")
 async def generate_test_cases(file: UploadFile = File(...),
                               application_flow: str = Form(...),
