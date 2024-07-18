@@ -5,3 +5,4 @@ opencv-python
 openai
 google.generativeai
 pytesseract
+python-Levenshtein
