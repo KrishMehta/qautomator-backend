@@ -58,43 +58,42 @@ def difference_in_colors_analyze(description_image_1, description_image_2, base6
                     {
                         "type": "text",
                         "text": f"""
-                    Act as an expert QA in visual testing for Android applications., your task is to compare two image
-                    of an android application's interface. 
+                    Act as an expert QA in visual testing for Android applications. Your task is to compare two images of an Android application's interface. 
                     My goal is to identify differences in two images.
-                    I will share the image description and corresponding images and you give me all differences between them. 
+                    I will share the image descriptions and corresponding images and you give me all differences between them. 
 
                     Please do it carefully as it is critical.
 
-                Description of Original Image: {description_image_1}
-                Description of Testing Image: {description_image_2}
+                    Description of Original Image: {description_image_1}
+                    Description of Testing Image: {description_image_2}
 
-                Example structure:
+                    Example structure:
 
-                #### 1. **Navigation Bar Icons (Top Menu)**
-                - **Original Image:**
-                  - **Trains Icon**: Blue with white and black accents.
-                  - **Flights Icon**: Blue and white.
-                  - **Buses Icon**: Blue and white.
-                  - **Hotels Icon**: Blue, white, and orange.
-                - **Testing Image:**
-                  - **Trains Icon**: Blue with white accents.
-                  - **Flights Icon**: Blue with white accents.
-                  - **Hotels Icon**: Blue with white accents.
-                  - **Buses Icon**: Blue with white accents.
+                    #### 1. **Navigation Bar Icons (Top Menu)**
+                    - **Original Image:**
+                      - **Trains Icon**: Blue with white and black accents.
+                      - **Flights Icon**: Blue and white.
+                      - **Buses Icon**: Blue and white.
+                      - **Hotels Icon**: Blue, white, and orange.
+                    - **Testing Image:**
+                      - **Trains Icon**: Blue with white accents.
+                      - **Flights Icon**: Blue with white accents.
+                      - **Hotels Icon**: Blue with white accents.
+                      - **Buses Icon**: Blue with white accents.
 
-                #### 2. **Date Selection:**
-                - **Original Image:**
-                  - **Background (Date Section)**: White (#FFFFFF)
-                  - **Date Text**: Black (#000000)
-                  - **Close Button (X)**: Black (#000000)
-                  - **Tomorrow Button**: Green background (#228B22) with white text.
-                  - **Day After Button**: Green background (#228B22) with white text.
-                - **Testing:**
-                  - **Background (Date Section)**: White (#FFFFFF)
-                  - **Date Text**: Black (#000000)
-                  - **Close Button (X)**: Black (#000000)
-                  - **Day After Button**: Green background (#7FC242) with white text.
-                  - **Day After Button**: Green background (#7FC242) with white text.
+                    #### 2. **Date Selection:**
+                    - **Original Image:**
+                      - **Background (Date Section)**: White (#FFFFFF)
+                      - **Date Text**: Black (#000000)
+                      - **Close Button (X)**: Black (#000000)
+                      - **Tomorrow Button**: Green background (#228B22) with white text.
+                      - **Day After Button**: Green background (#228B22) with white text.
+                    - **Testing:**
+                      - **Background (Date Section)**: White (#FFFFFF)
+                      - **Date Text**: Black (#000000)
+                      - **Close Button (X)**: Black (#000000)
+                      - **Day After Button**: Green background (#7FC242) with white text.
+                      - **Day After Button**: Green background (#7FC242) with white text.
               """
                     },
                     {
@@ -114,8 +113,8 @@ def difference_in_colors_analyze(description_image_1, description_image_2, base6
         ],
         max_tokens=4096,
         temperature=0.3,  # Lower temperature for more deterministic and precise responses
-        top_p=0.5)
-
+        top_p=0.5
+    )
     return response_of_color.choices[0].message.content
 
 
@@ -124,7 +123,6 @@ def process_color_in_images(original_image, testing_image):
 
     encoded_images = [original_image, testing_image]
 
-    # Analyze each image
     descriptions = []
     for image in encoded_images:
         description = analyze_image_color(image)
@@ -173,8 +171,8 @@ def analyze_image_layout(base64_image, model="gpt-4o", max_tokens=4096):
         ],
         max_tokens=max_tokens,
         temperature=0.3,  # Lower temperature for more deterministic and precise responses
-        top_p=0.6)
-
+        top_p=0.6
+    )
     return response.choices[0].message.content
 
 
@@ -188,22 +186,21 @@ def difference_in_layout_analyze(description_image_1, description_image_2, base6
                     {
                         "type": "text",
                         "text": f"""
-                Act as an expert QA in visual testing for Android applications., your task is to compare two image
-                of an android application's interface. 
+                Act as an expert QA in visual testing for Android applications. Your task is to compare two images of an Android application's interface. 
                 My goal is to identify differences in two images.
-                I will share the image description and corresponding images and you give me all differences between them. 
+                I will share the image descriptions and corresponding images and you give me all differences between them. 
 
                 Please do it carefully as it is critical.
 
-                Description of Original Image : {description_image_1}
-                Description of Testing Image : {description_image_2}
+                Description of Original Image: {description_image_1}
+                Description of Testing Image: {description_image_2}
                 """
                     },
                     {
                         "type": "image_url",
                         "image_url": {
                             "url": f"{base64_image_1}",
-                        },
+                        }
                     },
                     {
                         "type": "image_url",
@@ -216,12 +213,11 @@ def difference_in_layout_analyze(description_image_1, description_image_2, base6
         ],
         max_tokens=4096,
         temperature=0.2,  # Lower temperature for more deterministic and precise responses
-        top_p=0.5)
-
+        top_p=0.5
+    )
     return response.choices[0].message.content
 
 
-# Analyze each image
 def process_layout_in_images(original_image, testing_image):
     print("processing layout of images")
 
@@ -276,7 +272,8 @@ def analyze_image_text(base64_image, model="gpt-4o", max_tokens=4096):
         ],
         max_tokens=max_tokens,
         temperature=0.3,  # Lower temperature for more deterministic and precise responses
-        top_p=0.6)
+        top_p=0.6
+    )
     return response.choices[0].message.content
 
 
@@ -290,10 +287,9 @@ def difference_in_text_analyze(description_image_1, description_image_2, base64_
                     {
                         "type": "text",
                         "text": f"""
-                Act as an expert QA in visual testing for Android applications., your task is to compare two image
-                of an android application's interface. 
+                Act as an expert QA in visual testing for Android applications. Your task is to compare two images of an Android application's interface. 
                 My goal is to identify differences in two images.
-                I will share the image description and corresponding images and you give me all differences between them. 
+                I will share the image descriptions and corresponding images and you give me all differences between them. 
 
                 Please do it carefully as it is critical.
 
@@ -328,8 +324,8 @@ def difference_in_text_analyze(description_image_1, description_image_2, base64_
         ],
         max_tokens=4096,
         temperature=0.2,  # Lower temperature for more deterministic and precise responses
-        top_p=0.5)
-
+        top_p=0.5
+    )
     return response.choices[0].message.content
 
 
@@ -398,6 +394,6 @@ def visual_analyze(difference_in_text, difference_in_layout, difference_in_color
         ],
         max_tokens=4096,
         temperature=0.4,  # Lower temperature for more deterministic and precise responses
-        top_p=0.6)
-
+        top_p=0.6
+    )
     return response.choices[0].message.content
