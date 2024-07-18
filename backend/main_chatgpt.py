@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import json
 import multiprocessing
+import pytesseract
 
 from qautomate.helpers.visual_testing_helper import process_color_in_images, process_layout_in_images, visual_analyze, \
     process_text_in_images
@@ -53,6 +54,9 @@ with open('qautomate/screen_ui_elements_map_ios.json', 'r') as f:
 with open('qautomate/screens_for_visual_testing.json', 'r') as f:
     visual_testing_images = json.load(f)
 
+# Specify the tesseract executable path
+pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
+
 
 async def capture_frames_at_intervals_grid(video_file, interval_ms=1000):
     try:
@@ -76,17 +80,31 @@ async def capture_frames_at_intervals_grid(video_file, interval_ms=1000):
 
         frames = []
         frame_count = 0
+        previous_text = ""
 
         for ms in range(0, duration_ms + 1, interval_ms):  # Include the last frame
             video.set(cv2.CAP_PROP_POS_MSEC, ms)  # Set the position of the video in milliseconds
             success, frame = video.read()
             if success:
-                frames.append(frame)
-                frame_count += 1
+                frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                try:
+                    text = pytesseract.image_to_string(frame_gray)
+                except Exception as e:
+                    print(f"Error during OCR at {ms} ms: {e}")
+                    continue
+                if text.strip() != previous_text.strip():
+                    previous_text = text
+                    frames.append(frame)
+                    frame_count += 1
+                else:
+                    print(f"Skipping frame at {ms} ms due to no text change.")
             else:
                 print(f"Warning: Frame at {ms} ms could not be read.")
 
-        print(f"{frame_count} frames read (every {interval_ms} ms).")
+        print(f"{frame_count} frames read and selected (every {interval_ms} ms).")
+
+        if not frames:
+            raise ValueError("No frames selected for the collage.")
 
         grid_size = int(np.ceil(np.sqrt(len(frames))))
         frame_height, frame_width, _ = frames[0].shape
