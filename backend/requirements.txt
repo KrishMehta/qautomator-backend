@@ -4,3 +4,4 @@ python-multipart
 opencv-python
 openai
 google.generativeai
+pytesseract
