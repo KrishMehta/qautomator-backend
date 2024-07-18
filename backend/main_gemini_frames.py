@@ -45,7 +45,6 @@ all_screens = {
 
 with open('qautomate/screen_ui_elements_map.json', 'r') as f:
     screen_mapper_android = json.load(f)
-    # print(screen_mapper)
 
 with open('qautomate/screen_ui_elements_map_ios.json', 'r') as f:
     screen_mapper_ios = json.load(f)
@@ -108,8 +107,8 @@ async def capture_frames_at_intervals(video_file, interval_ms=1000):
             else:
                 print(f"Warning: Frame at {ms} ms could not be read.")
 
-            if not frames:
-                raise ValueError("No frames selected for the collage.")
+        if not frames:
+            raise ValueError("No frames selected for the collage.")
 
         grid_size = int(np.ceil(np.sqrt(len(frames))))
         frame_height, frame_width, _ = frames[0].shape
@@ -306,7 +305,7 @@ async def generate_code_for_test_cases_gemini_frames(file: UploadFile = File(...
     prompt_android = f'''I have developed test cases for an Android application based on the {type_of_flow} functionality.
     Using the provided video frames, functional flow, the xpaths of UI elements, and test cases,
     I need to generate Appium code with appropriate assertions and comments and automate the testing of this
-    pecific functionality.
+    specific functionality.
 
     Note that widgets in the app can be EditText, TextView, Button or some other type, so use XPath given in the prompt 
     to locate these components. Make sure to use static UI elements not dependent on dynamic data from APIs.
