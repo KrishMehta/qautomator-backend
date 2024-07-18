@@ -279,233 +279,231 @@ async def generate_code_for_test_cases_gemini_frames(file: UploadFile = File(...
     print("TC list", test_cases_list)
     print("OS", os_type)
 
-    print(type(test_cases_list))
-
     test_case_list_obj = json.loads(test_cases_list)
 
-    base64Frames = await capture_frames_at_intervals(file, 1000)
+    base64_collage = await capture_frames_at_intervals(file, 1000)
+
+    img_data = base64.b64decode(base64_collage)
+    img = Image.open(BytesIO(img_data))
+    img.save("collage.jpg")
+
+    image_file = genai.upload_file(path="collage.jpg")
 
     impacted_screens = set()
     for test_case in test_case_list_obj:
-        # print(test_case)
         lines = test_case.split("\n")
-        # print(lines)
         for line in lines:
             if line.startswith("- **Impacted Screens:**"):
                 screens = line.replace("- **Impacted Screens:**", "").strip().split(", ")
                 impacted_screens.update(screens)
 
-    # Fetch the screen data from mapper.json
     screen_mapper = screen_mapper_android if os_type == "android" else screen_mapper_ios
     screen_data = {screen: screen_mapper.get(screen, {}) for screen in impacted_screens}
 
-    # print("Impacted Screens:", impacted_screens)
     print("Screen Data:", screen_data)
 
     # Create the prompt
     prompt_android = f'''I have developed test cases for an Android application based on the {type_of_flow} functionality.
-                Using the provided video frames, functional flow, the xpaths of UI elements, and test cases,
-                I need to generate Appium code with appropriate assertions and comments and automate the testing of this
-                specific functionality.
+    Using the provided video frames, functional flow, the xpaths of UI elements, and test cases,
+    I need to generate Appium code with appropriate assertions and comments and automate the testing of this
+    pecific functionality.
 
-                Note that widgets in the app can be EditText, TextView, Button or some other type, so use XPath given in the prompt 
-                to locate these components. Make sure to use static UI elements not dependent on dynamic data from APIs.
+    Note that widgets in the app can be EditText, TextView, Button or some other type, so use XPath given in the prompt 
+    to locate these components. Make sure to use static UI elements not dependent on dynamic data from APIs.
 
-                Here are the key details:
+    Here are the key details:
 
-                ### Functional Flow: 
-                        {application_flow}
+    ### Functional Flow: 
+    {application_flow}
 
-                ### Impacted Screens UI Element XPATHS to prepare testcases :
-                        {screen_data}
-                        
-                ### Test Cases:
-                        {test_cases_list}
+    ### Impacted Screens UI Element XPATHS to prepare testcases :
+    {screen_data}
+                            
+    ### Test Cases:
+    {test_cases_list}
 
-                    Example Appium Code:
+    Example Appium Code:
 
-                    def test_case_1(self):
-                        """
-                        Verify the "PNR Status" option is visible and selectable on the Home screen.
-                        Steps:
-                            1. Navigate to the Home screen.
-                            2. Locate the "PNR Status" button.
-                            3. Tap on the "PNR Status" button.
-                        Expected Outcome: User is navigated to the PNR Status screen.
-                        """
-                        # Wait for the Home screen to load and locate the "PNR Status" button
-                        WebDriverWait(self.driver, 10).until(
-                            EC.presence_of_element_located((By.XPATH, "//android.widget.TextView[@text='PNR Status']"))
-                        )
-                        pnr_status_button = self.driver.find_element(By.XPATH, "//android.widget.TextView[@text='PNR Status']")
-                        self.assertTrue(pnr_status_button.is_displayed())
+    def test_case_1(self):
+        """
+        Verify the "PNR Status" option is visible and selectable on the Home screen.
+        Steps:
+            1. Navigate to the Home screen.
+            2. Locate the "PNR Status" button.
+            3. Tap on the "PNR Status" button.
+        Expected Outcome: User is navigated to the PNR Status screen.
+        """
+        # Wait for the Home screen to load and locate the "PNR Status" button
+        WebDriverWait(self.driver, 10).until(
+            EC.presence_of_element_located((By.XPATH, "//android.widget.TextView[@text='PNR Status']"))
+        )
+        pnr_status_button = self.driver.find_element(By.XPATH, "//android.widget.TextView[@text='PNR Status']")
+        self.assertTrue(pnr_status_button.is_displayed())
 
-                        # Tap on the "PNR Status" button
-                        pnr_status_button.click()
+        # Tap on the "PNR Status" button
+        pnr_status_button.click()
 
-                        # Wait for the PNR Status screen to load
-                        WebDriverWait(self.driver, 10).until(
-                            EC.presence_of_element_located((By.XPATH, "//android.widget.EditText[@text='Enter your 10 digit PNR']"))
-                        )
-                        self.assertTrue(self.driver.find_element(By.XPATH,
-                                                                 "//android.widget.EditText[@text='Enter your 10 digit PNR']").is_displayed())
+        # Wait for the PNR Status screen to load
+        WebDriverWait(self.driver, 10).until(
+            EC.presence_of_element_located((By.XPATH, "//android.widget.EditText[@text='Enter your 10 digit PNR']"))
+        )
+        self.assertTrue(self.driver.find_element(By.XPATH,
+                                                 "//android.widget.EditText[@text='Enter your 10 digit PNR']").is_displayed())
 
-                    def test_case_2(self):
-                        """
-                        Verify user can enter a valid PNR number.
-                        Steps:
-                            1. Navigate to the PNR Status screen.
-                            2. Enter a valid 10-digit PNR number in the input field.
-                            3. Tap the "Search" button.
-                        Expected Outcome: The input field accepts the PNR number, and the user can tap the search button.
-                        """
-                        # Navigate to the PNR Status screen (same steps as Test Case 1)
-                        self.test_case_1()
+    def test_case_2(self):
+        """
+        Verify user can enter a valid PNR number.
+        Steps:
+            1. Navigate to the PNR Status screen.
+            2. Enter a valid 10-digit PNR number in the input field.
+            3. Tap the "Search" button.
+        Expected Outcome: The input field accepts the PNR number, and the user can tap the search button.
+        """
+        # Navigate to the PNR Status screen (same steps as Test Case 1)
+        self.test_case_1()
 
-                        # Locate the PNR input field and enter a valid 10-digit PNR number
-                        pnr_input_field = self.driver.find_element(By.XPATH,
-                                                                   "//android.widget.EditText[@text='Enter your 10 digit PNR']")
-                        pnr_input_field.send_keys("1234567890")
+        # Locate the PNR input field and enter a valid 10-digit PNR number
+        pnr_input_field = self.driver.find_element(By.XPATH,
+                                                   "//android.widget.EditText[@text='Enter your 10 digit PNR']")
+        pnr_input_field.send_keys("1234567890")
 
-                        # Locate the "Search" button and tap on it
-                        search_button = self.driver.find_element(By.XPATH, "//android.widget.Button[contains(@text, 'Search')]")
-                        search_button.click()
+        # Locate the "Search" button and tap on it
+        search_button = self.driver.find_element(By.XPATH, "//android.widget.Button[contains(@text, 'Search')]")
+        search_button.click()
 
-                    def test_case_3(self):
-                        """
-                        Verify the application handles invalid PNR numbers.
-                        Steps:
-                            1. Enter an invalid or less than 10-digit PNR number.
-                        Expected Outcome: The search button should remain disabled.
-                        """
-                        # Navigate to the PNR Status screen (same steps as Test Case 1)
-                        self.test_case_1()
+    def test_case_3(self):
+        """
+        Verify the application handles invalid PNR numbers.
+        Steps:
+            1. Enter an invalid or less than 10-digit PNR number.
+        Expected Outcome: The search button should remain disabled.
+        """
+        # Navigate to the PNR Status screen (same steps as Test Case 1)
+        self.test_case_1()
 
-                        # Locate the PNR input field and enter an invalid PNR number (less than 10 digits)
-                        pnr_input_field = self.driver.find_element(By.XPATH,
-                                                                   "//android.widget.EditText[@text='Enter your 10 digit PNR']")
-                        pnr_input_field.send_keys("12345")
+        # Locate the PNR input field and enter an invalid PNR number (less than 10 digits)
+        pnr_input_field = self.driver.find_element(By.XPATH,
+                                                   "//android.widget.EditText[@text='Enter your 10 digit PNR']")
+        pnr_input_field.send_keys("12345")
 
-                        # Locate the "Search" button and tap on it
-                        search_button = self.driver.find_element(By.XPATH, "//android.widget.Button[contains(@text, 'Search')]")
-                        # search_button.click()
-                        # Verify that the button is disabled
-                        assert not search_button.is_enabled(), "The search button should be disabled for invalid PNR input"
+        # Locate the "Search" button and tap on it
+        search_button = self.driver.find_element(By.XPATH, "//android.widget.Button[contains(@text, 'Search')]")
+        # search_button.click()
+        # Verify that the button is disabled
+        assert not search_button.is_enabled(), "The search button should be disabled for invalid PNR input"
 
-    These are frames from a video that I want to upload.'''
+    This is a collage of frames from a video that I want to upload.'''
 
     # Create the prompt
     prompt_ios = f'''I have developed test cases for an iOS application based on the {type_of_flow} functionality.
-                Using the provided video frames, functional flow, the xpaths of UI elements, and test cases,
-                I need to generate Appium code in JavaScript with appropriate assertions and comments and automate the testing of this
-                specific functionality.
+    Using the provided video frames, functional flow, the xpaths of UI elements, and test cases,
+    I need to generate Appium code in JavaScript with appropriate assertions and comments and automate the testing of this
+    specific functionality.
 
-                Note that widgets in the app can be EditText, TextView, Button or some other type, so use XPath given in the prompt 
-                to locate these components. Make sure to use static UI elements not dependent on dynamic data from APIs.
+    Note that widgets in the app can be EditText, TextView, Button or some other type, so use XPath given in the prompt 
+    to locate these components. Make sure to use static UI elements not dependent on dynamic data from APIs.
 
-                Here are the key details:
+    Here are the key details:
 
-                ### Functional Flow: 
-                        {application_flow}
+    ### Functional Flow: 
+    {application_flow}
 
-                ### Impacted Screens UI Element XPATHS to prepare testcases :
-                        {screen_data}
-                        
-                ### Test Cases:
-                        {test_cases_list}
+    ### Impacted Screens UI Element XPATHS to prepare testcases :
+    {screen_data}
+            
+    ### Test Cases:
+    {test_cases_list}
 
-                    Example Appium Code for iOS:
+    Example Appium Code for iOS:
 
-                    async function testCase1(client) {{
-                        try {{
-                            // Verify the "PNR Status" option is visible and selectable on the Home screen.
-                            // Steps:
-                            // 1. Navigate to the Home screen.
-                            // 2. Locate the "PNR Status" button.
-                            // 3. Tap on the "PNR Status" button.
-                            // Expected Outcome: User is navigated to the PNR Status screen.
+    async function testCase1(client) {{
+        try {{
+            // Verify the "PNR Status" option is visible and selectable on the Home screen.
+            // Steps:
+            // 1. Navigate to the Home screen.
+            // 2. Locate the "PNR Status" button.
+            // 3. Tap on the "PNR Status" button.
+            // Expected Outcome: User is navigated to the PNR Status screen.
 
-                            // Wait for the Home screen to load and locate the "PNR Status" button
-                            const pnrStatusButton = await client.$('//XCUIElementTypeStaticText[contains(@label, "PNR Status")]');
-                            if (await pnrStatusButton.isDisplayed()) {{
-                                await pnrStatusButton.click();
-                            }} else {{
-                                throw new Error('"PNR Status" button is not displayed');
-                            }}
+            // Wait for the Home screen to load and locate the "PNR Status" button
+            const pnrStatusButton = await client.$('//XCUIElementTypeStaticText[contains(@label, "PNR Status")]');
+            if (await pnrStatusButton.isDisplayed()) {{
+                await pnrStatusButton.click();
+            }} else {{
+                throw new Error('"PNR Status" button is not displayed');
+            }}
 
-                            // Wait for the PNR Status screen to load
-                            await client.pause(2000); // Adjust the delay as necessary
+            // Wait for the PNR Status screen to load
+            await client.pause(2000); // Adjust the delay as necessary
 
-                            // Validate the PNR Status screen
-                            const pnrInput = await client.$('//XCUIElementTypeTextField[contains(@value, "Enter your 10 digit PNR")]');
-                            if (!await pnrInput.isDisplayed()) {{
-                                throw new Error('"Enter your 10 digit PNR" input field is not displayed');
-                            }}
-                        }} catch (error) {{
-                            console.error('Error in testCase1:', error);
-                            throw error;
-                        }}
-                    }}
+            // Validate the PNR Status screen
+            const pnrInput = await client.$('//XCUIElementTypeTextField[contains(@value, "Enter your 10 digit PNR")]');
+            if (!await pnrInput.isDisplayed()) {{
+                throw new Error('"Enter your 10 digit PNR" input field is not displayed');
+            }}
+        }} catch (error) {{
+            console.error('Error in testCase1:', error);
+            throw error;
+        }}
+    }}
 
-                    async function testCase2(client) {{
-                        try {{
-                            // Verify user can enter a valid PNR number.
-                            // Steps:
-                            // 1. Navigate to the PNR Status screen.
-                            // 2. Enter a valid 10-digit PNR number in the input field.
-                            // 3. Tap the "Search" button.
-                            // Expected Outcome: The input field accepts the PNR number, and the user can tap the search button.
+    async function testCase2(client) {{
+        try {{
+            // Verify user can enter a valid PNR number.
+            // Steps:
+            // 1. Navigate to the PNR Status screen.
+            // 2. Enter a valid 10-digit PNR number in the input field.
+            // 3. Tap the "Search" button.
+            // Expected Outcome: The input field accepts the PNR number, and the user can tap the search button.
 
-                            // Navigate to the PNR Status screen (reuse steps from testCase1)
-                            await testCase1(client);
+            // Navigate to the PNR Status screen (reuse steps from testCase1)
+            await testCase1(client);
 
-                            // Locate the PNR input field and enter a valid 10-digit PNR number
-                            const pnrInput = await client.$('//XCUIElementTypeTextField[contains(@value, "Enter your 10 digit PNR")]');
-                            await pnrInput.setValue('1234567890');
+            // Locate the PNR input field and enter a valid 10-digit PNR number
+            const pnrInput = await client.$('//XCUIElementTypeTextField[contains(@value, "Enter your 10 digit PNR")]');
+            await pnrInput.setValue('1234567890');
 
-                            // Locate and tap the "Search" button
-                            const searchButton = await client.$('//XCUIElementTypeButton[contains(@label, "Search")]');
-                            await searchButton.click();
+            // Locate and tap the "Search" button
+            const searchButton = await client.$('//XCUIElementTypeButton[contains(@label, "Search")]');
+            await searchButton.click();
 
-                            // Wait for the search results to load
-                            await client.pause(5000); // Adjust the delay as necessary
-                        }} catch (error) {{
-                            console.error('Error in testCase2:', error);
-                            throw error;
-                        }}
-                    }}
+            // Wait for the search results to load
+            await client.pause(5000); // Adjust the delay as necessary
+        }} catch (error) {{
+            console.error('Error in testCase2:', error);
+            throw error;
+        }}
+    }}
 
-                    async function testCase3(client) {{
-                        try {{
-                            // Verify the application handles invalid PNR numbers.
-                            // Steps:
-                            // 1. Enter an invalid or less than 10-digit PNR number.
-                            // Expected Outcome: The search button should remain disabled.
+    async function testCase3(client) {{
+        try {{
+            // Verify the application handles invalid PNR numbers.
+            // Steps:
+            // 1. Enter an invalid or less than 10-digit PNR number.
+            // Expected Outcome: The search button should remain disabled.
 
-                            // Navigate to the PNR Status screen (reuse steps from testCase1)
-                            await testCase1(client);
+            // Navigate to the PNR Status screen (reuse steps from testCase1)
+            await testCase1(client);
 
-                            // Locate the PNR input field and enter an invalid PNR number (less than 10 digits)
-                            const pnrInput = await client.$('//XCUIElementTypeTextField[contains(@value, "Enter your 10 digit PNR")]');
-                            await pnrInput.setValue('12345');
+            // Locate the PNR input field and enter an invalid PNR number (less than 10 digits)
+            const pnrInput = await client.$('//XCUIElementTypeTextField[contains(@value, "Enter your 10 digit PNR")]');
+            await pnrInput.setValue('12345');
 
-                            // Locate the "Search" button
-                            const searchButton = await client.$('//XCUIElementTypeButton[contains(@label, "Search")]');
+            // Locate the "Search" button
+            const searchButton = await client.$('//XCUIElementTypeButton[contains(@label, "Search")]');
 
-                            // Verify that the search button is disabled
-                            const isEnabled = await searchButton.isEnabled();
-                            if (isEnabled) {{
-                                throw new Error('The search button should be disabled for invalid PNR input');
-                            }}
-                        }} catch (error) {{
-                            console.error('Error in testCase3:', error);
-                            throw error;
-                        }}
-                    }}
+            // Verify that the search button is disabled
+            const isEnabled = await searchButton.isEnabled();
+            if (isEnabled) {{
+                throw new Error('The search button should be disabled for invalid PNR input');
+            }}
+        }} catch (error) {{
+            console.error('Error in testCase3:', error);
+            throw error;
+        }}
+    }}
 
-    These are frames from a video that I want to upload.'''
-
-    # print(PROMPT_MESSAGES)
+    This is a collage of frames from a video that I want to upload.'''
 
     # Set the model to Gemini 1.5 Pro.
     model = genai.GenerativeModel(model_name="models/gemini-1.5-pro-latest")
@@ -513,16 +511,16 @@ async def generate_code_for_test_cases_gemini_frames(file: UploadFile = File(...
     # Make the LLM request.
     print("Making LLM inference request...")
     if os_type == 'android':
-        response = model.generate_content([prompt_android, base64Frames],
+        response = model.generate_content([prompt_android, base64_collage],
                                           request_options={"timeout": 600})
     else:
-        response = model.generate_content([prompt_ios, base64Frames],
+        response = model.generate_content([prompt_ios, base64_collage],
                                           request_options={"timeout": 600})
-    print("result", response.text)
 
     total_tokens = response.usage_metadata.total_token_count
     print("Total tokens used", total_tokens)
 
+    print("result", response.text)
     return {"result": response.text}
 
 
