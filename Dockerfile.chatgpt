@@ -8,7 +8,12 @@ WORKDIR /app/backend
 
 RUN apt-get update && apt-get install -y \
     libgl1-mesa-glx \
-    libglib2.0-0
+    libglib2.0-0 \
+    tesseract-ocr
+
+# Set environment variables
+ENV TESSERACT_PATH=/usr/bin/tesseract
+ENV PATH="${PATH}:/usr/bin"
 
 RUN pip install --no-cache-dir -r requirements.txt
 
