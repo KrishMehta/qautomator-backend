@@ -511,10 +511,10 @@ async def generate_code_for_test_cases_gemini_frames(file: UploadFile = File(...
     # Make the LLM request.
     print("Making LLM inference request...")
     if os_type == 'android':
-        response = model.generate_content([prompt_android, base64_collage],
+        response = model.generate_content([prompt_android, image_file],
                                           request_options={"timeout": 600})
     else:
-        response = model.generate_content([prompt_ios, base64_collage],
+        response = model.generate_content([prompt_ios, image_file],
                                           request_options={"timeout": 600})
 
     total_tokens = response.usage_metadata.total_token_count
