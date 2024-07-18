@@ -1,18 +1,21 @@
-from typing import List
-
-from fastapi import FastAPI, File, UploadFile, Form
-import tempfile
-import os
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
 import json
 import multiprocessing
-
-from qautomate.helpers.visual_testing_helper import process_color_in_images, process_layout_in_images, visual_analyze, \
-    process_text_in_images
+import os
+import tempfile
+import time
 
 import google.generativeai as genai
-import time
+
+from fastapi import FastAPI, File, Form, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+
+from qautomate.helpers.visual_testing_helper import (
+    process_color_in_images,
+    process_layout_in_images,
+    process_text_in_images,
+    visual_analyze
+)
 
 app = FastAPI()
 app.add_middleware(
@@ -26,14 +29,7 @@ app.add_middleware(
 gemini_key = os.getenv('gemini_key')
 if not gemini_key:
     raise ValueError("No Gemini API key found in environment variable 'GOOGLE_API_KEY'")
-
 genai.configure(api_key=gemini_key)
-
-#
-# class TestCaseCodeGenRequest(BaseModel):
-#     test_no: str
-#     test_details: str
-
 
 all_screens = {
     "home_screen": "The main screen allows users to book trains, flights, buses, and hotels, with search fields for train routes, date selection, and options for checking running status and PNR status. Key UI elements include tabs for different transportation modes, search functionality, and quick access to services like seat availability and food orders.",
@@ -41,10 +37,8 @@ all_screens = {
     "search_result_page_trains": "This screen displays available train options for a selected route and date, showing train names, departure and arrival times, travel duration, and fare details. It includes filters for best available and AC-only options, along with seat availability and schedule links for each train."
 }
 
-# Load mapper.json
 with open('qautomate/screen_ui_elements_map.json', 'r') as f:
     screen_mapper_android = json.load(f)
-    # print(screen_mapper)
 
 with open('qautomate/screen_ui_elements_map_ios.json', 'r') as f:
     screen_mapper_ios = json.load(f)
@@ -210,8 +204,6 @@ async def generate_code_for_test_cases_gemini(file: UploadFile = File(...),
     print("TC list", test_cases_list)
     print("OS", os_type)
 
-    print(type(test_cases_list))
-
     test_case_list_obj = json.loads(test_cases_list)
 
     with tempfile.NamedTemporaryFile(delete=False) as tmp:
@@ -234,19 +226,15 @@ async def generate_code_for_test_cases_gemini(file: UploadFile = File(...),
 
     impacted_screens = set()
     for test_case in test_case_list_obj:
-        # print(test_case)
         lines = test_case.split("\n")
-        # print(lines)
         for line in lines:
             if line.startswith("- **Impacted Screens:**"):
                 screens = line.replace("- **Impacted Screens:**", "").strip().split(", ")
                 impacted_screens.update(screens)
 
-    # Fetch the screen data from mapper.json
     screen_mapper = screen_mapper_android if os_type == "android" else screen_mapper_ios
     screen_data = {screen: screen_mapper.get(screen, {}) for screen in impacted_screens}
 
-    # print("Impacted Screens:", impacted_screens)
     print("Screen Data:", screen_data)
 
     # Create the prompt
@@ -452,8 +440,6 @@ async def generate_code_for_test_cases_gemini(file: UploadFile = File(...),
 
     This is the video that I want to upload.'''
 
-    # print(PROMPT_MESSAGES)
-
     # Set the model to Gemini 1.5 Pro.
     model = genai.GenerativeModel(model_name="models/gemini-1.5-pro-latest")
 
@@ -499,6 +485,7 @@ async def visual_testing_gemini(request: VisualTestingRequest):
     # print(request.osType)
     print("visual testing stared")
     original_image = visual_testing_images.get(request.osType).get(request.screen_type)
+
     # Define the functions and their arguments
     tasks = [
         (process_color_in_images, original_image, request.testScreen),
@@ -520,11 +507,6 @@ async def visual_testing_gemini(request: VisualTestingRequest):
         "original_Img": original_image,
         "testing_Img": request.testScreen
     }}
-    # return {"result": {
-    #     "color": color_diff,
-    #     "layout": layout_diff,
-    #     "text": text_diff
-    # }}
 
 
 @app.post("/backend_tc_gen_gemini")
