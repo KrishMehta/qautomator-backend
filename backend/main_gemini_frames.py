@@ -29,17 +29,11 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
+# Read the value of the environment variable
 gemini_key = os.getenv('gemini_key')
 if not gemini_key:
     raise ValueError("No Gemini API key found in environment variable 'GOOGLE_API_KEY'")
-
 genai.configure(api_key=gemini_key)
-
-#
-# class TestCaseCodeGenRequest(BaseModel):
-#     test_no: str
-#     test_details: str
-
 
 all_screens = {
     "home_screen": "The main screen allows users to book trains, flights, buses, and hotels, with search fields for train routes, date selection, and options for checking running status and PNR status. Key UI elements include tabs for different transportation modes, search functionality, and quick access to services like seat availability and food orders.",
@@ -47,7 +41,6 @@ all_screens = {
     "search_result_page_trains": "This screen displays available train options for a selected route and date, showing train names, departure and arrival times, travel duration, and fare details. It includes filters for best available and AC-only options, along with seat availability and schedule links for each train."
 }
 
-# Load mapper.json
 with open('qautomate/screen_ui_elements_map.json', 'r') as f:
     screen_mapper_android = json.load(f)
     # print(screen_mapper)
@@ -57,6 +50,15 @@ with open('qautomate/screen_ui_elements_map_ios.json', 'r') as f:
 
 with open('qautomate/screens_for_visual_testing.json', 'r') as f:
     visual_testing_images = json.load(f)
+
+# Specify the tesseract executable path
+pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
+
+
+def text_difference_ratio(text1, text2):
+    distance = levenshtein_distance(text1, text2)
+    max_length = max(len(text1), len(text2))
+    return distance / max_length if max_length != 0 else 0
 
 
 async def capture_frames_at_intervals(video_file, interval_ms=1000):
@@ -70,36 +72,71 @@ async def capture_frames_at_intervals(video_file, interval_ms=1000):
         if not video.isOpened():
             raise IOError(f"Error: Could not open video file {tmp_path}")
 
-        # Get video properties
-        fps = video.get(cv2.CAP_PROP_FPS)  # Frame rate
+        fps = video.get(cv2.CAP_PROP_FPS)
         total_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-        duration_ms = int((total_frames / fps) * 1000)  # Total duration in milliseconds
+        duration_ms = int((total_frames / fps) * 1000)
 
         print(f"Video FPS: {fps}")
         print(f"Total frames: {total_frames}")
         print(f"Estimated duration (milliseconds): {duration_ms}")
 
-        base64Frames = []
+        frames = []
         frame_count = 0
+        previous_text = ""
 
         for ms in range(0, duration_ms + 1, interval_ms):  # Include the last frame
             video.set(cv2.CAP_PROP_POS_MSEC, ms)  # Set the position of the video in milliseconds
             success, frame = video.read()
             if success:
-                _, buffer = cv2.imencode(".jpg", frame)
-                base64Frames.append(base64.b64encode(buffer).decode("utf-8"))
-                frame_count += 1
+                frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                try:
+                    text = pytesseract.image_to_string(frame_gray)
+                except Exception as e:
+                    print(f"Error during OCR at {ms} ms: {e}")
+                    continue
+
+                text_diff_ratio = text_difference_ratio(text.strip(), previous_text.strip())
+                if text_diff_ratio > 0.10:  # Check for greater than 10% difference
+                    previous_text = text
+                    frames.append(frame)
+                    frame_count += 1
+                    print(f"Frame at {ms} ms added with text difference ratio: {text_diff_ratio:.2%}")
+                else:
+                    print(f"Skipping frame at {ms} ms due to low text difference ratio: {text_diff_ratio:.2%}")
             else:
                 print(f"Warning: Frame at {ms} ms could not be read.")
 
-        print(f"{frame_count} frames read and encoded (every {interval_ms} ms).")
-        return base64Frames
+            if not frames:
+                raise ValueError("No frames selected for the collage.")
+
+        grid_size = int(np.ceil(np.sqrt(len(frames))))
+        frame_height, frame_width, _ = frames[0].shape
+
+        collage_height = grid_size * frame_height
+        collage_width = grid_size * frame_width
+        collage = np.zeros((collage_height, collage_width, 3), dtype=np.uint8)
+
+        for idx, frame in enumerate(frames):
+            row = idx // grid_size
+            col = idx % grid_size
+            y = row * frame_height
+            x = col * frame_width
+            collage[y:y + frame_height, x:x + frame_width] = frame
+
+        # Resize the collage to the specified width
+        max_width = 768
+        scaling_factor = max_width / collage_width
+        resized_collage = cv2.resize(collage, (max_width, int(collage_height * scaling_factor)))
+
+        _, buffer = cv2.imencode(".jpg", resized_collage)
+        base64_collage = base64.b64encode(buffer).decode("utf-8")
+
+        return base64_collage
 
     except Exception as e:
         print(f"An error occurred: {e}")
     finally:
         video.release()
-
 
 @app.post("/func_flow_gemini_frames/")
 async def generate_func_flow_gemini_frames(file: UploadFile = File(...)):
