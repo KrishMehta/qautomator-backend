@@ -12,6 +12,7 @@ from pydantic import BaseModel
 import json
 import multiprocessing
 import pytesseract
+from Levenshtein import distance as levenshtein_distance
 
 from qautomate.helpers.visual_testing_helper import process_color_in_images, process_layout_in_images, visual_analyze, \
     process_text_in_images
@@ -58,6 +59,12 @@ with open('qautomate/screens_for_visual_testing.json', 'r') as f:
 pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
 
 
+def text_difference_ratio(text1, text2):
+    distance = levenshtein_distance(text1, text2)
+    max_length = max(len(text1), len(text2))
+    return distance / max_length if max_length != 0 else 0
+
+
 async def capture_frames_at_intervals_grid(video_file, interval_ms=1000):
     try:
         with tempfile.NamedTemporaryFile(delete=False) as tmp:
@@ -92,12 +99,16 @@ async def capture_frames_at_intervals_grid(video_file, interval_ms=1000):
                 except Exception as e:
                     print(f"Error during OCR at {ms} ms: {e}")
                     continue
-                if text.strip() != previous_text.strip():
+
+                text_diff_ratio = text_difference_ratio(text.strip(), previous_text.strip())
+
+                if text_diff_ratio > 0.10:  # Check for greater than 10% difference
                     previous_text = text
                     frames.append(frame)
                     frame_count += 1
+                    print(f"Frame at {ms} ms added with text difference ratio: {text_diff_ratio:.2%}")
                 else:
-                    print(f"Skipping frame at {ms} ms due to no text change.")
+                    print(f"Skipping frame at {ms} ms due to low text difference ratio: {text_diff_ratio:.2%}")
             else:
                 print(f"Warning: Frame at {ms} ms could not be read.")
 
