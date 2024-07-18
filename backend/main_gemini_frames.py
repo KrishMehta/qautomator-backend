@@ -550,6 +550,7 @@ async def visual_testing_gemini_frames(request: VisualTestingRequest):
     # print(request.osType)
     print("visual testing stared")
     original_image = visual_testing_images.get(request.osType).get(request.screen_type)
+
     # Define the functions and their arguments
     tasks = [
         (process_color_in_images, original_image, request.testScreen),
@@ -571,11 +572,6 @@ async def visual_testing_gemini_frames(request: VisualTestingRequest):
         "original_Img": original_image,
         "testing_Img": request.testScreen
     }}
-    # return {"result": {
-    #     "color": color_diff,
-    #     "layout": layout_diff,
-    #     "text": text_diff
-    # }}
 
 
 @app.post("/backend_tc_gen_gemini_frames")
