@@ -202,64 +202,71 @@ async def generate_test_cases_gemini_frames(file: UploadFile = File(...),
                                             application_flow: str = Form(...),
                                             type_of_flow: str = Form(...)):
     print("generating TCs")
-    base64Frames = await capture_frames_at_intervals(file, 1000)
+    base64_collage = await capture_frames_at_intervals(file, 1000)
+
+    img_data = base64.b64decode(base64_collage)
+    img = Image.open(BytesIO(img_data))
+    img.save("collage.jpg")
+
+    image_file = genai.upload_file(path="collage.jpg")
+
     # Create the prompt
     prompt = f'''Based on the detailed functionality flow generated from the video frames,
-                I need to create comprehensive UI-based test cases for the functionality of {type_of_flow}, based on the detailed functionality flow generated from the video frames.
+    I need to create comprehensive UI-based test cases for the functionality of {type_of_flow}, based on the detailed functionality flow generated from the video frames.
 
-                Please make sure that the test cases are comprehensive, covering all possible scenarios as observed in the video frames, and have expected outcomes based on static UI elements in the video frames and not dependent on dynamic data from APIs.
-                All Screens available {all_screens}
-                
-                ### Instructions:
+    Please make sure that the test cases are comprehensive, covering all possible scenarios as observed in the video frames, and have expected outcomes based on static UI elements in the video frames and not dependent on dynamic data from APIs.
+    All Screens available {all_screens}
+                    
+    ### Instructions:
 
-                1. **Review the Functional Flow:**
-                   - Carefully review the functionality flow generated from the video analysis.
-                   - Understand each interaction and the corresponding system response.
-                   - Focus on the static UI elements involved in each interaction (e.g., buttons, input fields, labels) rather than dynamic content.
-                    {application_flow}
+    1. **Review the Functional Flow:**
+    - Carefully review the functionality flow generated from the video analysis.
+    - Understand each interaction and the corresponding system response.
+    - Focus on the static UI elements involved in each interaction (e.g., buttons, input fields, labels) rather than dynamic content.
+    {application_flow}
 
-                2. **Generate Test Cases:**
-                   - Create detailed UI test cases for each interaction with the application.
-                   - Ensure each test case includes:
-                     - A clear and specific description of the test case
-                     - Attach the impacted screen names along with it.
-                     - Step-by-step instructions based on observed interactions in the video frames
-                     - Specific and measurable expected outcomes based solely on static UI elements (e.g., presence of buttons, input fields, labels)
-                     - Identification of edge cases and potential user errors (e.g., incorrect inputs, system errors)
+    2. **Generate Test Cases:**
+    - Create detailed UI test cases for each interaction with the application.
+    - Ensure each test case includes:
+        - A clear and specific description of the test case
+        - Attach the impacted screen names along with it.
+        - Step-by-step instructions based on observed interactions in the video frames
+        - Specific and measurable expected outcomes based solely on static UI elements (e.g., presence of buttons, input fields, labels)
+        - Identification of edge cases and potential user errors (e.g., incorrect inputs, system errors)
 
 
-                    Example Structure:
+    Example Structure:
 
-                    **Test Case 1:**
-                    - **Description:** [Detailed description of the test case]
-                    - **Impacted Screens:** [screen1, screen2]
-                    - **Steps:**
-                      1. [Step-by-step instructions]
-                      2. [Continue steps as necessary]
-                    - **Expected Outcome:** [Specific expected results that can be validated using UI elements]
+    **Test Case 1:**
+    - **Description:** [Detailed description of the test case]
+    - **Impacted Screens:** [screen1, screen2]
+    - **Steps:**
+        1. [Step-by-step instructions]
+        2. [Continue steps as necessary]
+    - **Expected Outcome:** [Specific expected results that can be validated using UI elements]
 
-                    **Test Case 2:**
-                    - **Description:** [Another detailed description]
-                    - **Impacted Screens:** [screen1]
-                    - **Steps:**
-                      1. [Step-by-step instructions]
-                      2. [Continue steps]
-                    - **Expected Outcome:** [Specific expected results]
+    **Test Case 2:**
+    - **Description:** [Another detailed description]
+    - **Impacted Screens:** [screen1]
+    - **Steps:**
+        1. [Step-by-step instructions]
+        2. [Continue steps]
+    - **Expected Outcome:** [Specific expected results]
 
-    These are frames from a video that I want to upload.'''
+    This is a collage of frames from a video that I want to upload.'''
 
     # Set the model to Gemini 1.5 Pro.
     model = genai.GenerativeModel(model_name="models/gemini-1.5-pro-latest")
 
     # Make the LLM request.
     print("Making LLM inference request...")
-    response = model.generate_content([prompt, base64Frames],
+    response = model.generate_content([prompt, image_file],
                                       request_options={"timeout": 600})
-    print("result", response.text)
 
     total_tokens = response.usage_metadata.total_token_count
     print("Total tokens used", total_tokens)
 
+    print("result", response.text)
     return {"result": response.text}
 
 
