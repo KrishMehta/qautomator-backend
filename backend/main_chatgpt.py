@@ -28,18 +28,12 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
 )
+
 # Read the value of the environment variable
 openai_key = os.getenv('openai_key')
 if not openai_key:
     raise ValueError("No OpenAI API key found in environment variable 'openai_key'")
-
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY", openai_key))
-
-#
-# class TestCaseCodeGenRequest(BaseModel):
-#     test_no: str
-#     test_details: str
-
 
 all_screens = {
     "home_screen": "The main screen allows users to book trains, flights, buses, and hotels, with search fields for train routes, date selection, and options for checking running status and PNR status. Key UI elements include tabs for different transportation modes, search functionality, and quick access to services like seat availability and food orders.",
@@ -47,10 +41,8 @@ all_screens = {
     "search_result_page_trains": "This screen displays available train options for a selected route and date, showing train names, departure and arrival times, travel duration, and fare details. It includes filters for best available and AC-only options, along with seat availability and schedule links for each train."
 }
 
-# Load mapper.json
 with open('qautomate/screen_ui_elements_map.json', 'r') as f:
     screen_mapper_android = json.load(f)
-    # print(screen_mapper)
 
 with open('qautomate/screen_ui_elements_map_ios.json', 'r') as f:
     screen_mapper_ios = json.load(f)
@@ -79,10 +71,9 @@ async def capture_frames_at_intervals_grid(video_file, interval_ms=1000):
         if not video.isOpened():
             raise IOError(f"Error: Could not open video file {tmp_path}")
 
-        # Get video properties
-        fps = video.get(cv2.CAP_PROP_FPS)  # Frame rate
+        fps = video.get(cv2.CAP_PROP_FPS)
         total_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-        duration_ms = int((total_frames / fps) * 1000)  # Total duration in milliseconds
+        duration_ms = int((total_frames / fps) * 1000)
 
         print(f"Video FPS: {fps}")
         print(f"Total frames: {total_frames}")
@@ -104,7 +95,6 @@ async def capture_frames_at_intervals_grid(video_file, interval_ms=1000):
                     continue
 
                 text_diff_ratio = text_difference_ratio(text.strip(), previous_text.strip())
-
                 if text_diff_ratio > 0.10:  # Check for greater than 10% difference
                     previous_text = text
                     frames.append(frame)
@@ -140,9 +130,9 @@ async def capture_frames_at_intervals_grid(video_file, interval_ms=1000):
         resized_collage = cv2.resize(collage, (max_width, int(collage_height * scaling_factor)))
 
         _, buffer = cv2.imencode(".jpg", resized_collage)
-        base64Collage = base64.b64encode(buffer).decode("utf-8")
+        base64_collage = base64.b64encode(buffer).decode("utf-8")
 
-        return base64Collage
+        return base64_collage
 
     except Exception as e:
         print(f"An error occurred: {e}")
@@ -161,16 +151,15 @@ async def capture_frames_at_intervals(video_file, interval_ms=1000):
         if not video.isOpened():
             raise IOError(f"Error: Could not open video file {tmp_path}")
 
-        # Get video properties
-        fps = video.get(cv2.CAP_PROP_FPS)  # Frame rate
+        fps = video.get(cv2.CAP_PROP_FPS)
         total_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-        duration_ms = int((total_frames / fps) * 1000)  # Total duration in milliseconds
+        duration_ms = int((total_frames / fps) * 1000)
 
         print(f"Video FPS: {fps}")
         print(f"Total frames: {total_frames}")
         print(f"Estimated duration (milliseconds): {duration_ms}")
 
-        base64Frames = []
+        base64_frames = []
         frame_count = 0
 
         for ms in range(0, duration_ms + 1, interval_ms):  # Include the last frame
@@ -178,13 +167,13 @@ async def capture_frames_at_intervals(video_file, interval_ms=1000):
             success, frame = video.read()
             if success:
                 _, buffer = cv2.imencode(".jpg", frame)
-                base64Frames.append(base64.b64encode(buffer).decode("utf-8"))
+                base64_frames.append(base64.b64encode(buffer).decode("utf-8"))
                 frame_count += 1
             else:
                 print(f"Warning: Frame at {ms} ms could not be read.")
 
         print(f"{frame_count} frames read and encoded (every {interval_ms} ms).")
-        return base64Frames
+        return base64_frames
 
     except Exception as e:
         print(f"An error occurred: {e}")
@@ -195,10 +184,10 @@ async def capture_frames_at_intervals(video_file, interval_ms=1000):
 @app.post("/func_flow_grid/")
 async def generate_func_flow_grid(file: UploadFile = File(...)):
     print("inside generate_func_flow_grid")
-    base64Collage = await capture_frames_at_intervals_grid(file, 1000)
+    base64_collage = await capture_frames_at_intervals_grid(file, 1000)
 
     # Prepare prompt messages
-    PROMPT_MESSAGES = [
+    prompt_messages = [
         {
             "role": "user",
             "content": [
@@ -236,16 +225,16 @@ async def generate_func_flow_grid(file: UploadFile = File(...)):
                 {
                     "type": "image_url",
                     "image_url": {
-                        "url": f"data:image/jpeg;base64,{base64Collage}"
+                        "url": f"data:image/jpeg;base64,{base64_collage}"
                     }
                 }
-            ],
-        },
+            ]
+        }
     ]
 
     params = {
         "model": "gpt-4o",
-        "messages": PROMPT_MESSAGES,
+        "messages": prompt_messages,
         "max_tokens": 4096,
         "temperature": 0.3,  # Lower temperature for more deterministic and precise responses
         "top_p": 0.8,
@@ -266,10 +255,11 @@ async def generate_func_flow_grid(file: UploadFile = File(...)):
 @app.post("/func_flow/")
 async def generate_func_flow(file: UploadFile = File(...)):
     print("inside generate_func_flow")
-    base64Frames = await capture_frames_at_intervals(file, 1000);
-    print("no of frames", len(base64Frames))
+    base64_frames = await capture_frames_at_intervals(file, 1000)
+    print("no of frames", len(base64_frames))
+
     # Prepare prompt messages
-    PROMPT_MESSAGES = [
+    prompt_messages = [
         {
             "role": "user",
             "content": [
@@ -299,13 +289,14 @@ async def generate_func_flow(file: UploadFile = File(...)):
                     capturing the essence of user actions and predictable app behavior.
                     
                     These are frames from a video that I want to upload.''',
-                *map(lambda x: {"image": x, "resize": 768}, base64Frames),
+                *map(lambda x: {"image": x, "resize": 768}, base64_frames),
             ],
         },
     ]
+
     params = {
         "model": "gpt-4o",
-        "messages": PROMPT_MESSAGES,
+        "messages": prompt_messages,
         "max_tokens": 4096,
         "temperature": 0.3,  # Lower temperature for more deterministic and precise responses
         "top_p": 0.8,
@@ -329,9 +320,9 @@ async def generate_test_cases_grid(file: UploadFile = File(...),
                                    type_of_flow: str = Form(...)
                                    ):
     print("generating TCs")
-    base64Collage = await capture_frames_at_intervals_grid(file, 1000)
+    base64_collage = await capture_frames_at_intervals_grid(file, 1000)
 
-    PROMPT_MESSAGES = [
+    prompt_messages = [
         {
             "role": "user",
             "content": [
@@ -384,16 +375,16 @@ async def generate_test_cases_grid(file: UploadFile = File(...),
                 {
                     "type": "image_url",
                     "image_url": {
-                        "url": f"data:image/jpeg;base64,{base64Collage}"
+                        "url": f"data:image/jpeg;base64,{base64_collage}"
                     }
                 }
-            ],
-        },
+            ]
+        }
     ]
 
     params = {
         "model": "gpt-4o",
-        "messages": PROMPT_MESSAGES,
+        "messages": prompt_messages,
         "max_tokens": 4096,
         "temperature": 0.3,  # Lower temperature for more deterministic and precise responses
         "top_p": 0.8,
@@ -417,8 +408,9 @@ async def generate_test_cases(file: UploadFile = File(...),
                               type_of_flow: str = Form(...)
                               ):
     print("generating TCs")
-    base64Frames = await capture_frames_at_intervals(file, 1000)
-    PROMPT_MESSAGES = [
+    base64_frames = await capture_frames_at_intervals(file, 1000)
+
+    prompt_messages = [
         {
             "role": "user",
             "content": [
@@ -465,14 +457,14 @@ async def generate_test_cases(file: UploadFile = File(...),
                     - **Expected Outcome:** [Specific expected results]
 
                      These are frames from a video that I want to upload.''',
-                *map(lambda x: {"image": x, "resize": 768}, base64Frames),
+                *map(lambda x: {"image": x, "resize": 768}, base64_frames),
             ],
         },
     ]
 
     params = {
         "model": "gpt-4o",
-        "messages": PROMPT_MESSAGES,
+        "messages": prompt_messages,
         "max_tokens": 4096,
         "temperature": 0.3,  # Lower temperature for more deterministic and precise responses
         "top_p": 0.8,
@@ -502,7 +494,7 @@ async def generate_code_for_test_cases_grid(file: UploadFile = File(...),
 
     test_case_list_obj = json.loads(test_cases_list)
 
-    base64Collage = await capture_frames_at_intervals_grid(file, 1000)
+    base64_collage = await capture_frames_at_intervals_grid(file, 1000)
 
     impacted_screens = set()
     for test_case in test_case_list_obj:
@@ -512,13 +504,11 @@ async def generate_code_for_test_cases_grid(file: UploadFile = File(...),
                 screens = line.replace("- **Impacted Screens:**", "").strip().split(", ")
                 impacted_screens.update(screens)
 
-    # Fetch the screen data from mapper.json
     screen_mapper = screen_mapper_android if os_type == "android" else screen_mapper_ios
     screen_data = {screen: screen_mapper.get(screen, {}) for screen in impacted_screens}
-
     print("Screen Data:", screen_data)
 
-    PROMPT_MESSAGES_FOR_ANDROID = [
+    prompt_messages_for_android = [
         {
             "role": "user",
             "content": [
@@ -618,14 +608,14 @@ async def generate_code_for_test_cases_grid(file: UploadFile = File(...),
                 {
                     "type": "image_url",
                     "image_url": {
-                        "url": f"data:image/jpeg;base64,{base64Collage}"
+                        "url": f"data:image/jpeg;base64,{base64_collage}"
                     }
                 }
             ],
         },
     ]
 
-    PROMPT_MESSAGES_FOR_IOS = [
+    prompt_messages_for_ios = [
         {
             "role": "user",
             "content": [
@@ -744,7 +734,7 @@ async def generate_code_for_test_cases_grid(file: UploadFile = File(...),
                 {
                     "type": "image_url",
                     "image_url": {
-                        "url": f"data:image/jpeg;base64,{base64Collage}"
+                        "url": f"data:image/jpeg;base64,{base64_collage}"
                     }
                 }
             ],
@@ -753,15 +743,7 @@ async def generate_code_for_test_cases_grid(file: UploadFile = File(...),
 
     params = {
         "model": "gpt-4o",
-        "messages": PROMPT_MESSAGES_FOR_ANDROID if os_type == 'android' else PROMPT_MESSAGES_FOR_IOS,
-        "max_tokens": 4096,
-        "temperature": 0.3,  # Lower temperature for more deterministic and precise responses
-        "top_p": 0.8,
-    }
-
-    params = {
-        "model": "gpt-4o",
-        "messages": PROMPT_MESSAGES_FOR_ANDROID if os_type == 'android' else PROMPT_MESSAGES_FOR_IOS,
+        "messages": prompt_messages_for_android if os_type == 'android' else prompt_messages_for_ios,
         "max_tokens": 4096,
         "temperature": 0.3,  # Lower temperature for more deterministic and precise responses
         "top_p": 0.8,
@@ -789,30 +771,23 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
     print("TC list", test_cases_list)
     print("OS", os_type)
 
-    print(type(test_cases_list))
-
     test_case_list_obj = json.loads(test_cases_list)
 
-    base64Frames = await capture_frames_at_intervals(file, 1000)
+    base64_frames = await capture_frames_at_intervals(file, 1000)
 
     impacted_screens = set()
     for test_case in test_case_list_obj:
-        # print(test_case)
         lines = test_case.split("\n")
-        # print(lines)
         for line in lines:
             if line.startswith("- **Impacted Screens:**"):
                 screens = line.replace("- **Impacted Screens:**", "").strip().split(", ")
                 impacted_screens.update(screens)
 
-    # Fetch the screen data from mapper.json
     screen_mapper = screen_mapper_android if os_type == "android" else screen_mapper_ios
     screen_data = {screen: screen_mapper.get(screen, {}) for screen in impacted_screens}
-
-    # print("Impacted Screens:", impacted_screens)
     print("Screen Data:", screen_data)
 
-    PROMPT_MESSAGES_FOR_ANDROID = [
+    prompt_messages_for_android = [
         {
             "role": "user",
             "content": [
@@ -906,12 +881,12 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
                         assert not search_button.is_enabled(), "The search button should be disabled for invalid PNR input"
 
                 These are frames from a video that I want to upload.''',
-                *map(lambda x: {"image": x, "resize": 768}, base64Frames),
+                *map(lambda x: {"image": x, "resize": 768}, base64_frames),
             ],
         },
     ]
 
-    PROMPT_MESSAGES_FOR_IOS = [
+    prompt_messages_for_ios = [
         {
             "role": "user",
             "content": [
@@ -1024,16 +999,14 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
                     }}
 
                 These are frames from a video that I want to upload.''',
-                *map(lambda x: {"image": x, "resize": 768}, base64Frames),
-            ],
-        },
+                *map(lambda x: {"image": x, "resize": 768}, base64_frames),
+            ]
+        }
     ]
-
-    # print(PROMPT_MESSAGES)
 
     params = {
         "model": "gpt-4o",
-        "messages": PROMPT_MESSAGES_FOR_ANDROID if os_type == 'android' else PROMPT_MESSAGES_FOR_IOS,
+        "messages": prompt_messages_for_android if os_type == 'android' else prompt_messages_for_ios,
         "max_tokens": 4096,
         "temperature": 0.3,  # Lower temperature for more deterministic and precise responses
         "top_p": 0.8,
@@ -1077,6 +1050,7 @@ async def visual_testing(request: VisualTestingRequest):
     # print(request.osType)
     print("visual testing stared")
     original_image = visual_testing_images.get(request.osType).get(request.screen_type)
+
     # Define the functions and their arguments
     tasks = [
         (process_color_in_images, original_image, request.testScreen),
@@ -1098,18 +1072,13 @@ async def visual_testing(request: VisualTestingRequest):
         "original_Img": original_image,
         "testing_Img": request.testScreen
     }}
-    # return {"result": {
-    #     "color": color_diff,
-    #     "layout": layout_diff,
-    #     "text": text_diff
-    # }}
 
 
 @app.post("/backend_tc_gen")
 async def generate_test_cases_for_backend(request: BackendTestingRequest):
     print("curl", request.curl)
 
-    PROMPT_MESSAGES = [
+    prompt_messages = [
         {
             "role": "user",
             "content":
@@ -1156,14 +1125,13 @@ async def generate_test_cases_for_backend(request: BackendTestingRequest):
                       2. [Continue steps as necessary]
                     - **Test Data** [Specific input data required for the test case, such as query parameters, path variables, or JSON payloads.]
                     - **Expected Result:** [The expected outcome of the test, including status codes, response body structure, response headers, and any other relevant details.]
-                '''
-
+                    '''
         },
     ]
 
     params = {
         "model": "gpt-4o",
-        "messages": PROMPT_MESSAGES,
+        "messages": prompt_messages,
         "max_tokens": 4096,
         "temperature": 0.3,  # Lower temperature for more deterministic and precise responses
         "top_p": 0.8,
@@ -1183,7 +1151,7 @@ async def generate_test_cases_for_backend(request: BackendTestingRequest):
 
 @app.post("/backend_tc_code_gen")
 async def generate_test_cases_code_for_backend(request: BackendTestingRequest):
-    PROMPT_MESSAGES = [
+    prompt_messages = [
         {
             "role": "user",
             "content":
@@ -1257,13 +1225,14 @@ async def generate_test_cases_code_for_backend(request: BackendTestingRequest):
         // Validate response body
         response.then().body("errors.code", equalTo(500));
         response.then().body("errors.message", equalTo("PNR No. is not valid"));
-    }'''
-        },
+    }
+    '''
+        }
     ]
 
     params = {
         "model": "gpt-4o",
-        "messages": PROMPT_MESSAGES,
+        "messages": prompt_messages,
         "max_tokens": 4096,
         "temperature": 0.3,  # Lower temperature for more deterministic and precise responses
         "top_p": 0.8,
@@ -1288,13 +1257,13 @@ async def parse_video_to_frame(file):
 
     # Process video and extract frames
     video = cv2.VideoCapture(tmp_path)
-    base64Frames = []
+    base64_frames = []
     while video.isOpened():
         success, frame = video.read()
         if not success:
             break
         _, buffer = cv2.imencode(".jpg", frame)
-        base64Frames.append(base64.b64encode(buffer).decode("utf-8"))
+        base64_frames.append(base64.b64encode(buffer).decode("utf-8"))
     video.release()
     os.remove(tmp_path)
-    return base64Frames
+    return base64_frames
