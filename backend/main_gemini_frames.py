@@ -7,6 +7,8 @@ import numpy as np
 import os
 import tempfile
 
+from io import BytesIO
+from PIL import Image
 from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from Levenshtein import distance as levenshtein_distance
@@ -144,6 +146,12 @@ async def generate_func_flow_gemini_frames(file: UploadFile = File(...)):
     print("inside generate_func_flow")
     base64_collage = await capture_frames_at_intervals(file, 1000)
 
+    img_data = base64.b64decode(base64_collage)
+    img = Image.open(BytesIO(img_data))
+    img.save("collage.jpg")
+
+    image_file = genai.upload_file(path="collage.jpg")
+
     # Create the prompt
     prompt = '''I am testing an Android application using video analysis to understand its functionality of 
     scheduled flight status flow. Specifically, I need to analyze the video frames of the application to generate a detailed functionality flow based on user interactions, focusing on the static UI elements and predefined states.
@@ -179,7 +187,7 @@ async def generate_func_flow_gemini_frames(file: UploadFile = File(...)):
 
     # Make the LLM request.
     print("Making LLM inference request...")
-    response = model.generate_content([prompt, base64_collage],
+    response = model.generate_content([prompt, image_file],
                                       request_options={"timeout": 600})
 
     total_tokens = response.usage_metadata.total_token_count
