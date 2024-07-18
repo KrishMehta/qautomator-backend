@@ -1,21 +1,24 @@
-from typing import List
-
-from fastapi import FastAPI, File, UploadFile, Form
-import cv2
 import base64
-import numpy as np
-from openai import OpenAI
-import os
-import tempfile
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+import cv2
 import json
 import multiprocessing
-import pytesseract
-from Levenshtein import distance as levenshtein_distance
+import numpy as np
+import os
+import tempfile
 
-from qautomate.helpers.visual_testing_helper import process_color_in_images, process_layout_in_images, visual_analyze, \
-    process_text_in_images
+from fastapi import FastAPI, File, Form, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from Levenshtein import distance as levenshtein_distance
+from openai import OpenAI
+from pydantic import BaseModel
+import pytesseract
+
+from qautomate.helpers.visual_testing_helper import (
+    process_color_in_images,
+    process_layout_in_images,
+    process_text_in_images,
+    visual_analyze
+)
 
 app = FastAPI()
 app.add_middleware(
