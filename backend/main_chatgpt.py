@@ -1045,10 +1045,7 @@ def worker(args):
 
 @app.post("/visual_testing")
 async def visual_testing(request: VisualTestingRequest):
-    # print(request.testScreen)
-    # print(request.screen_type)
-    # print(request.osType)
-    print("visual testing stared")
+    print("visual testing started")
     original_image = visual_testing_images.get(request.osType).get(request.screen_type)
 
     # Define the functions and their arguments
