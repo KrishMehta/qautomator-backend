@@ -73,27 +73,27 @@ async def generate_func_flow_gemini(file: UploadFile = File(...)):
     prompt = '''I am testing an Android application using video analysis to understand its functionality of 
                 scheduled flight status flow. Specifically, I need to analyze the video to generate a detailed functionality flow based on user interactions, focusing on the static UI elements and predefined states.
 
-                    Please follow these steps:
+                Please follow these steps:
 
-                    1. **Analyze the Video:**
-                       - Observe the video to identify the sequence of user interactions with the application.
-                       - Note down each step in detail, including any screen transitions, user inputs, and system responses, focusing on static UI elements and not on dynamic data from API responses.
+                1. **Analyze the Video:**
+                   - Observe the video to identify the sequence of user interactions with the application.
+                   - Note down each step in detail, including any screen transitions, user inputs, and system responses, focusing on static UI elements and not on dynamic data from API responses.
 
-                    2. **Generate the Functional Flow:**
-                       - Provide a detailed flow of the feature based on the observed interactions in the video.
-                       - Clearly depict each step, including relevant conditions or branching logic triggered by user interactions or predictable system responses.
-                       - Ensure that each step is described in the order it occurs, emphasizing static elements like buttons, input fields, labels, and predefined messages.
-                       
-                    **Functional Flow:**
-                    - Step 1: [Description of user interaction and initial state, e.g., "User launches the app and observes the splash screen."]
-                    - Step 2: [Description of subsequent interaction and app response, focusing on static elements, e.g., "User navigates to the main screen and sees options for Trains, Flights, Buses, and Hotels."]
-                    - Step 3: [Repeat for each step observed, describing user interactions and static components only.]
+                2. **Generate the Functional Flow:**
+                   - Provide a detailed flow of the feature based on the observed interactions in the video.
+                   - Clearly depict each step, including relevant conditions or branching logic triggered by user interactions or predictable system responses.
+                   - Ensure that each step is described in the order it occurs, emphasizing static elements like buttons, input fields, labels, and predefined messages.
+                   
+                **Functional Flow:**
+                - Step 1: [Description of user interaction and initial state, e.g., "User launches the app and observes the splash screen."]
+                - Step 2: [Description of subsequent interaction and app response, focusing on static elements, e.g., "User navigates to the main screen and sees options for Trains, Flights, Buses, and Hotels."]
+                - Step 3: [Repeat for each step observed, describing user interactions and static components only.]
 
-                    Focus: Capture the functionality flow based on user interactions as seen in the video of the application, 
-                    concentrating on static UI elements and avoiding reliance on dynamic data. Each step should be clear and concise, 
-                    capturing the essence of user actions and predictable app behavior.
-                    
-    This is the video that I want to upload.'''
+                Focus: Capture the functionality flow based on user interactions as seen in the video of the application, 
+                concentrating on static UI elements and avoiding reliance on dynamic data. Each step should be clear and concise, 
+                capturing the essence of user actions and predictable app behavior.
+                
+                This is the video that I want to upload.'''
 
     # Set the model to Gemini 1.5 Pro.
     model = genai.GenerativeModel(model_name="models/gemini-1.5-pro-latest")
@@ -480,10 +480,7 @@ def worker(args):
 
 @app.post("/visual_testing_gemini")
 async def visual_testing_gemini(request: VisualTestingRequest):
-    # print(request.testScreen)
-    # print(request.screen_type)
-    # print(request.osType)
-    print("visual testing stared")
+    print("visual testing started")
     original_image = visual_testing_images.get(request.osType).get(request.screen_type)
 
     # Define the functions and their arguments
