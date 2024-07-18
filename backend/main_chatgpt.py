@@ -60,7 +60,7 @@ def text_difference_ratio(text1, text2):
     return distance / max_length if max_length != 0 else 0
 
 
-async def capture_frames_at_intervals_grid(video_file, interval_ms=1000):
+async def capture_frames_at_intervals_grid(video_file, interval_ms=250):
     try:
         with tempfile.NamedTemporaryFile(delete=False) as tmp:
             tmp.write(await video_file.read())
@@ -184,7 +184,7 @@ async def capture_frames_at_intervals(video_file, interval_ms=1000):
 @app.post("/func_flow_grid/")
 async def generate_func_flow_grid(file: UploadFile = File(...)):
     print("inside generate_func_flow_grid")
-    base64_collage = await capture_frames_at_intervals_grid(file, 1000)
+    base64_collage = await capture_frames_at_intervals_grid(file, 250)
 
     # Prepare prompt messages
     prompt_messages = [
@@ -320,7 +320,7 @@ async def generate_test_cases_grid(file: UploadFile = File(...),
                                    type_of_flow: str = Form(...)
                                    ):
     print("generating TCs")
-    base64_collage = await capture_frames_at_intervals_grid(file, 1000)
+    base64_collage = await capture_frames_at_intervals_grid(file, 250)
 
     prompt_messages = [
         {
@@ -494,7 +494,7 @@ async def generate_code_for_test_cases_grid(file: UploadFile = File(...),
 
     test_case_list_obj = json.loads(test_cases_list)
 
-    base64_collage = await capture_frames_at_intervals_grid(file, 1000)
+    base64_collage = await capture_frames_at_intervals_grid(file, 250)
 
     impacted_screens = set()
     for test_case in test_case_list_obj:
