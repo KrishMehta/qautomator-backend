@@ -4,6 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile.chatgpt
     volumes:
+      - ./all_frames:/app/backend/all_frames
       - ./output_frames:/app/backend/output_frames
     ports:
       - "8000:8000"
