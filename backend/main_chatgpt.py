@@ -112,7 +112,6 @@ async def capture_frames_at_intervals(video_file, interval_ms=250):
 
                 text_diff_ratio = text_difference_ratio(text.strip(), previous_text.strip())
                 if text_diff_ratio > 0.10:  # Check for greater than 10%
-                    previous_text = text
                     frames.append(frame)
                     frame_count += 1
                     print(f"Frame at {ms} ms added with text difference ratio: {text_diff_ratio:.2%}")
@@ -129,6 +128,8 @@ async def capture_frames_at_intervals(video_file, interval_ms=250):
                         print(f"Skipping frame at {ms} ms due to low text difference ratio: {text_diff_ratio:.2%}")
                     else:
                         print(f"Skipping frame at {ms} ms due to high text difference ratio: {text_diff_ratio:.2%}")
+
+                previous_text = text
 
                 # Save all frames
                 all_frames_path = os.path.join(all_frames_dir, f'frame_{ms}.jpg')
