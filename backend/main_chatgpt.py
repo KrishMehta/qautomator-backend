@@ -53,6 +53,9 @@ with open('qautomate/screens_for_visual_testing.json', 'r') as f:
 # Specify the tesseract executable path
 pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
 
+input_cost_per_million = 0.15  # 15 cents per 1M input tokens
+output_cost_per_million = 0.60  # 60 cents per 1M output tokens
+
 
 def text_difference_ratio(text1, text2):
     distance = levenshtein_distance(text1, text2)
@@ -233,7 +236,7 @@ async def generate_func_flow_grid(file: UploadFile = File(...)):
     ]
 
     params = {
-        "model": "gpt-4o",
+        "model": "gpt-4o-mini",
         "messages": prompt_messages,
         "max_tokens": 4096,
         "temperature": 0.3,  # Lower temperature for more deterministic and precise responses
@@ -243,11 +246,20 @@ async def generate_func_flow_grid(file: UploadFile = File(...)):
     result = client.chat.completions.create(**params)
     print("result", result.choices[0].message.content)
 
+    input_tokens = result.usage.prompt_tokens
+    output_tokens = result.usage.completion_tokens
     total_tokens = result.usage.total_tokens
-    total_cost = total_tokens / 1000 * 0.015
 
-    print(f"Total tokens used: {total_tokens}")
-    print(f"Estimated cost: ${total_cost:.2f}")
+    input_cost = (input_tokens / 1_000_000) * input_cost_per_million
+    output_cost = (output_tokens / 1_000_000) * output_cost_per_million
+    total_cost = input_cost + output_cost
+
+    print(f"Input tokens: {input_tokens}")
+    print(f"Output tokens: {output_tokens}")
+    print(f"Total tokens: {total_tokens}")
+    print(f"Input cost: ${input_cost:.6f}")
+    print(f"Output cost: ${output_cost:.6f}")
+    print(f"Total cost: ${total_cost:.6f}")
 
     return {"result": result.choices[0].message.content}
 
@@ -295,7 +307,7 @@ async def generate_func_flow(file: UploadFile = File(...)):
     ]
 
     params = {
-        "model": "gpt-4o",
+        "model": "gpt-4o-mini",
         "messages": prompt_messages,
         "max_tokens": 4096,
         "temperature": 0.3,  # Lower temperature for more deterministic and precise responses
@@ -305,11 +317,20 @@ async def generate_func_flow(file: UploadFile = File(...)):
     result = client.chat.completions.create(**params)
     print("result", result.choices[0].message.content)
 
+    input_tokens = result.usage.prompt_tokens
+    output_tokens = result.usage.completion_tokens
     total_tokens = result.usage.total_tokens
-    total_cost = total_tokens / 1000 * 0.015
 
-    print(f"Total tokens used: {total_tokens}")
-    print(f"Estimated cost: ${total_cost:.2f}")
+    input_cost = (input_tokens / 1_000_000) * input_cost_per_million
+    output_cost = (output_tokens / 1_000_000) * output_cost_per_million
+    total_cost = input_cost + output_cost
+
+    print(f"Input tokens: {input_tokens}")
+    print(f"Output tokens: {output_tokens}")
+    print(f"Total tokens: {total_tokens}")
+    print(f"Input cost: ${input_cost:.6f}")
+    print(f"Output cost: ${output_cost:.6f}")
+    print(f"Total cost: ${total_cost:.6f}")
 
     return {"result": result.choices[0].message.content}
 
@@ -383,7 +404,7 @@ async def generate_test_cases_grid(file: UploadFile = File(...),
     ]
 
     params = {
-        "model": "gpt-4o",
+        "model": "gpt-4o-mini",
         "messages": prompt_messages,
         "max_tokens": 4096,
         "temperature": 0.3,  # Lower temperature for more deterministic and precise responses
@@ -393,11 +414,20 @@ async def generate_test_cases_grid(file: UploadFile = File(...),
     result = client.chat.completions.create(**params)
     print("result", result.choices[0].message.content)
 
+    input_tokens = result.usage.prompt_tokens
+    output_tokens = result.usage.completion_tokens
     total_tokens = result.usage.total_tokens
-    total_cost = total_tokens / 1000 * 0.015
 
-    print(f"Total tokens used: {total_tokens}")
-    print(f"Estimated cost: ${total_cost:.2f}")
+    input_cost = (input_tokens / 1_000_000) * input_cost_per_million
+    output_cost = (output_tokens / 1_000_000) * output_cost_per_million
+    total_cost = input_cost + output_cost
+
+    print(f"Input tokens: {input_tokens}")
+    print(f"Output tokens: {output_tokens}")
+    print(f"Total tokens: {total_tokens}")
+    print(f"Input cost: ${input_cost:.6f}")
+    print(f"Output cost: ${output_cost:.6f}")
+    print(f"Total cost: ${total_cost:.6f}")
 
     return {"result": result.choices[0].message.content}
 
@@ -463,7 +493,7 @@ async def generate_test_cases(file: UploadFile = File(...),
     ]
 
     params = {
-        "model": "gpt-4o",
+        "model": "gpt-4o-mini",
         "messages": prompt_messages,
         "max_tokens": 4096,
         "temperature": 0.3,  # Lower temperature for more deterministic and precise responses
@@ -473,11 +503,20 @@ async def generate_test_cases(file: UploadFile = File(...),
     result = client.chat.completions.create(**params)
     print("result", result.choices[0].message.content)
 
+    input_tokens = result.usage.prompt_tokens
+    output_tokens = result.usage.completion_tokens
     total_tokens = result.usage.total_tokens
-    total_cost = total_tokens / 1000 * 0.015
 
-    print(f"Total tokens used: {total_tokens}")
-    print(f"Estimated cost: ${total_cost:.2f}")
+    input_cost = (input_tokens / 1_000_000) * input_cost_per_million
+    output_cost = (output_tokens / 1_000_000) * output_cost_per_million
+    total_cost = input_cost + output_cost
+
+    print(f"Input tokens: {input_tokens}")
+    print(f"Output tokens: {output_tokens}")
+    print(f"Total tokens: {total_tokens}")
+    print(f"Input cost: ${input_cost:.6f}")
+    print(f"Output cost: ${output_cost:.6f}")
+    print(f"Total cost: ${total_cost:.6f}")
 
     return {"result": result.choices[0].message.content}
 
@@ -742,7 +781,7 @@ async def generate_code_for_test_cases_grid(file: UploadFile = File(...),
     ]
 
     params = {
-        "model": "gpt-4o",
+        "model": "gpt-4o-mini",
         "messages": prompt_messages_for_android if os_type == 'android' else prompt_messages_for_ios,
         "max_tokens": 4096,
         "temperature": 0.3,  # Lower temperature for more deterministic and precise responses
@@ -752,11 +791,20 @@ async def generate_code_for_test_cases_grid(file: UploadFile = File(...),
     result = client.chat.completions.create(**params)
     print("result", result.choices[0].message.content)
 
+    input_tokens = result.usage.prompt_tokens
+    output_tokens = result.usage.completion_tokens
     total_tokens = result.usage.total_tokens
-    total_cost = total_tokens / 1000 * 0.015
 
-    print(f"Total tokens used: {total_tokens}")
-    print(f"Estimated cost: ${total_cost:.2f}")
+    input_cost = (input_tokens / 1_000_000) * input_cost_per_million
+    output_cost = (output_tokens / 1_000_000) * output_cost_per_million
+    total_cost = input_cost + output_cost
+
+    print(f"Input tokens: {input_tokens}")
+    print(f"Output tokens: {output_tokens}")
+    print(f"Total tokens: {total_tokens}")
+    print(f"Input cost: ${input_cost:.6f}")
+    print(f"Output cost: ${output_cost:.6f}")
+    print(f"Total cost: ${total_cost:.6f}")
 
     return {"result": result.choices[0].message.content}
 
@@ -1005,7 +1053,7 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
     ]
 
     params = {
-        "model": "gpt-4o",
+        "model": "gpt-4o-mini",
         "messages": prompt_messages_for_android if os_type == 'android' else prompt_messages_for_ios,
         "max_tokens": 4096,
         "temperature": 0.3,  # Lower temperature for more deterministic and precise responses
@@ -1015,11 +1063,20 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
     result = client.chat.completions.create(**params)
     print("result", result.choices[0].message.content)
 
+    input_tokens = result.usage.prompt_tokens
+    output_tokens = result.usage.completion_tokens
     total_tokens = result.usage.total_tokens
-    total_cost = total_tokens / 1000 * 0.015
 
-    print(f"Total tokens used: {total_tokens}")
-    print(f"Estimated cost: ${total_cost:.2f}")
+    input_cost = (input_tokens / 1_000_000) * input_cost_per_million
+    output_cost = (output_tokens / 1_000_000) * output_cost_per_million
+    total_cost = input_cost + output_cost
+
+    print(f"Input tokens: {input_tokens}")
+    print(f"Output tokens: {output_tokens}")
+    print(f"Total tokens: {total_tokens}")
+    print(f"Input cost: ${input_cost:.6f}")
+    print(f"Output cost: ${output_cost:.6f}")
+    print(f"Total cost: ${total_cost:.6f}")
 
     return {"result": result.choices[0].message.content}
 
@@ -1127,7 +1184,7 @@ async def generate_test_cases_for_backend(request: BackendTestingRequest):
     ]
 
     params = {
-        "model": "gpt-4o",
+        "model": "gpt-4o-mini",
         "messages": prompt_messages,
         "max_tokens": 4096,
         "temperature": 0.3,  # Lower temperature for more deterministic and precise responses
@@ -1137,11 +1194,20 @@ async def generate_test_cases_for_backend(request: BackendTestingRequest):
     result = client.chat.completions.create(**params)
     print("result", result.choices[0].message.content)
 
+    input_tokens = result.usage.prompt_tokens
+    output_tokens = result.usage.completion_tokens
     total_tokens = result.usage.total_tokens
-    total_cost = total_tokens / 1000 * 0.015
 
-    print(f"Total tokens used: {total_tokens}")
-    print(f"Estimated cost: ${total_cost:.2f}")
+    input_cost = (input_tokens / 1_000_000) * input_cost_per_million
+    output_cost = (output_tokens / 1_000_000) * output_cost_per_million
+    total_cost = input_cost + output_cost
+
+    print(f"Input tokens: {input_tokens}")
+    print(f"Output tokens: {output_tokens}")
+    print(f"Total tokens: {total_tokens}")
+    print(f"Input cost: ${input_cost:.6f}")
+    print(f"Output cost: ${output_cost:.6f}")
+    print(f"Total cost: ${total_cost:.6f}")
 
     return {"result": result.choices[0].message.content}
 
@@ -1228,7 +1294,7 @@ async def generate_test_cases_code_for_backend(request: BackendTestingRequest):
     ]
 
     params = {
-        "model": "gpt-4o",
+        "model": "gpt-4o-mini",
         "messages": prompt_messages,
         "max_tokens": 4096,
         "temperature": 0.3,  # Lower temperature for more deterministic and precise responses
@@ -1238,11 +1304,20 @@ async def generate_test_cases_code_for_backend(request: BackendTestingRequest):
     result = client.chat.completions.create(**params)
     print("result", result.choices[0].message.content)
 
+    input_tokens = result.usage.prompt_tokens
+    output_tokens = result.usage.completion_tokens
     total_tokens = result.usage.total_tokens
-    total_cost = total_tokens / 1000 * 0.015
 
-    print(f"Total tokens used: {total_tokens}")
-    print(f"Estimated cost: ${total_cost:.2f}")
+    input_cost = (input_tokens / 1_000_000) * input_cost_per_million
+    output_cost = (output_tokens / 1_000_000) * output_cost_per_million
+    total_cost = input_cost + output_cost
+
+    print(f"Input tokens: {input_tokens}")
+    print(f"Output tokens: {output_tokens}")
+    print(f"Total tokens: {total_tokens}")
+    print(f"Input cost: ${input_cost:.6f}")
+    print(f"Output cost: ${output_cost:.6f}")
+    print(f"Total cost: ${total_cost:.6f}")
 
     return {"result": result.choices[0].message.content}
 
