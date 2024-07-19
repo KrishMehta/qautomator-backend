@@ -99,13 +99,16 @@ async def capture_frames_at_intervals_grid(video_file, interval_ms=250):
                     continue
 
                 text_diff_ratio = text_difference_ratio(text.strip(), previous_text.strip())
-                if text_diff_ratio > 0.10:  # Check for greater than 10% difference
+                if 0.10 < text_diff_ratio < 1.00 or frame_count == 0:  # Check for greater than 10% and less than 100% difference
                     previous_text = text
                     frames.append(frame)
                     frame_count += 1
                     print(f"Frame at {ms} ms added with text difference ratio: {text_diff_ratio:.2%}")
                 else:
-                    print(f"Skipping frame at {ms} ms due to low text difference ratio: {text_diff_ratio:.2%}")
+                    if text_diff_ratio <= 0.10:
+                        print(f"Skipping frame at {ms} ms due to low text difference ratio: {text_diff_ratio:.2%}")
+                    else:
+                        print(f"Skipping frame at {ms} ms due to high text difference ratio: {text_diff_ratio:.2%}")
             else:
                 print(f"Warning: Frame at {ms} ms could not be read.")
 
