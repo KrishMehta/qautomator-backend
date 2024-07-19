@@ -15,7 +15,7 @@ client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY", openai_key))
 
 
 # Function to analyze image using client
-def analyze_image_color(base64_image, model="gpt-4o", max_tokens=4096):
+def analyze_image_color(base64_image, model="gpt-4o-mini", max_tokens=4096):
     response = client.chat.completions.create(
         model=model,
         messages=[
@@ -50,7 +50,7 @@ def analyze_image_color(base64_image, model="gpt-4o", max_tokens=4096):
 
 def difference_in_colors_analyze(description_image_1, description_image_2, base64_image_1, base64_image_2):
     response_of_color = client.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-4o-mini",
         messages=[
             {
                 "role": "user",
@@ -140,7 +140,7 @@ def process_color_in_images(original_image, testing_image):
     return color_difference
 
 
-def analyze_image_layout(base64_image, model="gpt-4o", max_tokens=4096):
+def analyze_image_layout(base64_image, model="gpt-4o-mini", max_tokens=4096):
     response = client.chat.completions.create(
         model=model,
         messages=[
@@ -178,7 +178,7 @@ def analyze_image_layout(base64_image, model="gpt-4o", max_tokens=4096):
 
 def difference_in_layout_analyze(description_image_1, description_image_2, base64_image_1, base64_image_2):
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-4o-mini",
         messages=[
             {
                 "role": "user",
@@ -240,7 +240,7 @@ def process_layout_in_images(original_image, testing_image):
 
 
 # Function to analyze image text
-def analyze_image_text(base64_image, model="gpt-4o", max_tokens=4096):
+def analyze_image_text(base64_image, model="gpt-4o-mini", max_tokens=4096):
     response = client.chat.completions.create(
         model=model,
         messages=[
@@ -279,7 +279,7 @@ def analyze_image_text(base64_image, model="gpt-4o", max_tokens=4096):
 
 def difference_in_text_analyze(description_image_1, description_image_2, base64_image_1, base64_image_2):
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-4o-mini",
         messages=[
             {
                 "role": "user",
@@ -354,7 +354,7 @@ def visual_analyze(difference_in_text, difference_in_layout, difference_in_color
     print("processing final Visual testing results of images")
 
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-4o-mini",
         messages=[
             {
                 "role": "user",
