@@ -57,6 +57,8 @@ pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
 input_cost_per_million = 0.15  # 15 cents per 1M input tokens
 output_cost_per_million = 0.60  # 60 cents per 1M output tokens
 
+base64_collage = None
+
 
 def text_difference_ratio(text1, text2):
     distance = levenshtein_distance(text1, text2)
@@ -65,6 +67,7 @@ def text_difference_ratio(text1, text2):
 
 
 async def capture_frames_at_intervals(video_file, interval_ms=250):
+    global base64_collage
     try:
         with tempfile.NamedTemporaryFile(delete=False) as tmp:
             tmp.write(await video_file.read())
@@ -175,6 +178,7 @@ async def capture_frames_at_intervals(video_file, interval_ms=250):
 
 @app.post("/func_flow/")
 async def generate_func_flow(file: UploadFile = File(...)):
+    global base64_collage
     print("inside generate_func_flow")
     base64_collage = await capture_frames_at_intervals(file, 250)
 
@@ -255,11 +259,13 @@ async def generate_func_flow(file: UploadFile = File(...)):
 
 @app.post("/generate_test_cases/")
 async def generate_test_cases(file: UploadFile = File(...),
-                                   application_flow: str = Form(...),
-                                   type_of_flow: str = Form(...)
-                                   ):
+                              application_flow: str = Form(...),
+                              type_of_flow: str = Form(...)
+                              ):
     print("generating TCs")
-    base64_collage = await capture_frames_at_intervals(file, 250)
+    global base64_collage
+    if base64_collage is None:
+        base64_collage = await capture_frames_at_intervals(file, 250)
 
     prompt_messages = [
         {
@@ -352,17 +358,19 @@ async def generate_test_cases(file: UploadFile = File(...),
 
 @app.post("/generate_test_cases_code")
 async def generate_code_for_test_cases(file: UploadFile = File(...),
-                                            application_flow: str = Form(...),
-                                            type_of_flow: str = Form(...),
-                                            test_cases_list: str = Form(...),
-                                            os_type: str = Form(...),
-                                            ):
+                                       application_flow: str = Form(...),
+                                       type_of_flow: str = Form(...),
+                                       test_cases_list: str = Form(...),
+                                       os_type: str = Form(...),
+                                       ):
     print("TC list", test_cases_list)
     print("OS", os_type)
 
     test_case_list_obj = json.loads(test_cases_list)
 
-    base64_collage = await capture_frames_at_intervals(file, 250)
+    global base64_collage
+    if base64_collage is None:
+        base64_collage = await capture_frames_at_intervals(file, 250)
 
     impacted_screens = set()
     for test_case in test_case_list_obj:
