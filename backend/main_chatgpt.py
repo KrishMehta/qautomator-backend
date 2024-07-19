@@ -111,7 +111,7 @@ async def capture_frames_at_intervals(video_file, interval_ms=250):
                     continue
 
                 text_diff_ratio = text_difference_ratio(text.strip(), previous_text.strip())
-                if text_diff_ratio > 0.10:  # Check for greater than 10%
+                if text_diff_ratio > 0.15:  # Check for greater than 15%
                     frames.append(frame)
                     frame_count += 1
                     print(f"Frame at {ms} ms added with text difference ratio: {text_diff_ratio:.2%}")
