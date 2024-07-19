@@ -12,6 +12,7 @@ from Levenshtein import distance as levenshtein_distance
 from openai import OpenAI
 from pydantic import BaseModel
 import pytesseract
+import matplotlib.pyplot as plt
 
 from qautomate.helpers.visual_testing_helper import (
     process_color_in_images,
@@ -134,6 +135,32 @@ async def capture_frames_at_intervals_grid(video_file, interval_ms=250):
 
         _, buffer = cv2.imencode(".jpg", resized_collage)
         base64_collage = base64.b64encode(buffer).decode("utf-8")
+
+        # Create a directory to save images
+        output_dir = os.path.abspath('/app/backend/output_frames')
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        # Save and display each frame
+        for idx, frame in enumerate(frames):
+            frame_path = os.path.join(output_dir, f'frame_{idx + 1}.jpg')
+            print(f'Saving frame {idx + 1} to {frame_path}')
+            plt.figure()
+            plt.imshow(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+            plt.title(f'Frame {idx + 1}')
+            plt.axis('off')
+            plt.savefig(frame_path)
+            plt.close()
+
+        # Save and display the final collage
+        collage_path = os.path.join(output_dir, 'final_collage.jpg')
+        print(f'Saving final collage to {collage_path}')
+        plt.figure(figsize=(10, 10))
+        plt.imshow(cv2.cvtColor(resized_collage, cv2.COLOR_BGR2RGB))
+        plt.title('Final Collage')
+        plt.axis('off')
+        plt.savefig(collage_path)
+        plt.close()
 
         return base64_collage
 
