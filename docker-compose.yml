@@ -3,6 +3,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.chatgpt
+    volumes:
+      - ./output_frames:/app/output_frames
     ports:
       - "8000:8000"
     depends_on:
