@@ -90,6 +90,15 @@ async def capture_frames_at_intervals(video_file, interval_ms=250):
         frame_count = 0
         previous_text = ""
 
+        # Create directories to save images
+        all_frames_dir = os.path.abspath('/app/backend/all_frames')
+        if not os.path.exists(all_frames_dir):
+            os.makedirs(all_frames_dir)
+
+        output_frames_dir = os.path.abspath('/app/backend/output_frames')
+        if not os.path.exists(output_frames_dir):
+            os.makedirs(output_frames_dir)
+
         for ms in range(0, duration_ms + 1, interval_ms):  # Include the last frame
             video.set(cv2.CAP_PROP_POS_MSEC, ms)  # Set the position of the video in milliseconds
             success, frame = video.read()
@@ -107,11 +116,28 @@ async def capture_frames_at_intervals(video_file, interval_ms=250):
                     frames.append(frame)
                     frame_count += 1
                     print(f"Frame at {ms} ms added with text difference ratio: {text_diff_ratio:.2%}")
+                    # Save the selected frame
+                    frame_path = os.path.join(output_frames_dir, f'frame_{ms}.jpg')
+                    plt.figure()
+                    plt.imshow(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+                    plt.title(f'Frame at {ms} ms')
+                    plt.axis('off')
+                    plt.savefig(frame_path)
+                    plt.close()
                 else:
                     if text_diff_ratio <= 0.10:
                         print(f"Skipping frame at {ms} ms due to low text difference ratio: {text_diff_ratio:.2%}")
                     else:
                         print(f"Skipping frame at {ms} ms due to high text difference ratio: {text_diff_ratio:.2%}")
+
+                # Save all frames
+                all_frames_path = os.path.join(all_frames_dir, f'frame_{ms}.jpg')
+                plt.figure()
+                plt.imshow(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+                plt.title(f'Frame at {ms} ms')
+                plt.axis('off')
+                plt.savefig(all_frames_path)
+                plt.close()
             else:
                 print(f"Warning: Frame at {ms} ms could not be read.")
 
@@ -142,24 +168,8 @@ async def capture_frames_at_intervals(video_file, interval_ms=250):
         _, buffer = cv2.imencode(".jpg", resized_collage)
         base64_collage = base64.b64encode(buffer).decode("utf-8")
 
-        # Create a directory to save images
-        output_dir = os.path.abspath('/app/backend/output_frames')
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-
-        # Save and display each frame
-        for idx, frame in enumerate(frames):
-            frame_path = os.path.join(output_dir, f'frame_{idx + 1}.jpg')
-            print(f'Saving frame {idx + 1} to {frame_path}')
-            plt.figure()
-            plt.imshow(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-            plt.title(f'Frame {idx + 1}')
-            plt.axis('off')
-            plt.savefig(frame_path)
-            plt.close()
-
         # Save and display the final collage
-        collage_path = os.path.join(output_dir, 'final_collage.jpg')
+        collage_path = os.path.join(output_frames_dir, 'final_collage.jpg')
         print(f'Saving final collage to {collage_path}')
         plt.figure(figsize=(10, 10))
         plt.imshow(cv2.cvtColor(resized_collage, cv2.COLOR_BGR2RGB))
