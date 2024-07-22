@@ -52,6 +52,7 @@ with open('qautomate/screens_for_visual_testing.json', 'r') as f:
     visual_testing_images = json.load(f)
 
 frames = None
+files = None
 
 
 async def capture_frames_at_intervals(video_file, interval_ms=250):
@@ -132,7 +133,7 @@ async def upload_images_to_gcs(image_paths):
 @app.post("/func_flow_gemini_frames/")
 async def generate_func_flow_gemini_frames(file: UploadFile = File(...)):
     print("inside generate_func_flow")
-    global frames
+    global frames, files
     frames = await capture_frames_at_intervals(file, 250)
 
     # Save frames as images
@@ -140,6 +141,7 @@ async def generate_func_flow_gemini_frames(file: UploadFile = File(...)):
 
     # Upload images
     uploaded_files = await upload_images_to_gcs(image_paths)
+    files = uploaded_files
 
     # Create the prompt
     prompt = '''I am testing an Android application using video analysis to understand its functionality of 
@@ -174,7 +176,7 @@ async def generate_func_flow_gemini_frames(file: UploadFile = File(...)):
 
     # Make the LLM request.
     print("Making LLM inference request...")
-    response = model.generate_content([prompt] + uploaded_files,
+    response = model.generate_content([prompt] + files,
                                       request_options={"timeout": 600})
 
     total_tokens = response.usage_metadata.total_token_count
@@ -189,9 +191,15 @@ async def generate_test_cases_gemini_frames(file: UploadFile = File(...),
                                              application_flow: str = Form(...),
                                              type_of_flow: str = Form(...)):
     print("generating TCs")
-    global frames
+    global frames, files
+
     if frames is None:
         frames = await capture_frames_at_intervals(file, 250)
+
+    if files is None:
+        image_paths = await save_frames_as_images(frames)
+        uploaded_files = await upload_images_to_gcs(image_paths)
+        files = uploaded_files
 
     # Create the prompt
     prompt = f'''Based on the detailed functionality flow generated from the video frames,
@@ -243,7 +251,7 @@ async def generate_test_cases_gemini_frames(file: UploadFile = File(...),
 
     # Make the LLM request.
     print("Making LLM inference request...")
-    response = model.generate_content([prompt, frames],
+    response = model.generate_content([prompt] + files,
                                       request_options={"timeout": 600})
 
     total_tokens = response.usage_metadata.total_token_count
@@ -264,9 +272,15 @@ async def generate_code_for_test_cases_gemini_frames(file: UploadFile = File(...
 
     test_case_list_obj = json.loads(test_cases_list)
 
-    global frames
+    global frames, files
+
     if frames is None:
         frames = await capture_frames_at_intervals(file, 250)
+
+    if files is None:
+        image_paths = await save_frames_as_images(frames)
+        uploaded_files = await upload_images_to_gcs(image_paths)
+        files = uploaded_files
 
     impacted_screens = set()
     for test_case in test_case_list_obj:
@@ -490,10 +504,10 @@ async def generate_code_for_test_cases_gemini_frames(file: UploadFile = File(...
     # Make the LLM request.
     print("Making LLM inference request...")
     if os_type == 'android':
-        response = model.generate_content([prompt_android, frames],
+        response = model.generate_content([prompt_android] + files,
                                           request_options={"timeout": 600})
     else:
-        response = model.generate_content([prompt_ios, frames],
+        response = model.generate_content([prompt_ios] + files,
                                           request_options={"timeout": 600})
 
     total_tokens = response.usage_metadata.total_token_count
