@@ -9,6 +9,7 @@ import tempfile
 from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from Levenshtein import distance as levenshtein_distance
+from skimage.metrics import structural_similarity as ssim
 from openai import OpenAI
 from pydantic import BaseModel
 import pytesseract
@@ -60,12 +61,6 @@ output_cost_per_million = 0.60  # 60 cents per 1M output tokens
 base64_collage = None
 
 
-def text_difference_ratio(text1, text2):
-    distance = levenshtein_distance(text1, text2)
-    max_length = max(len(text1), len(text2))
-    return distance / max_length if max_length != 0 else 0
-
-
 async def capture_frames_at_intervals(video_file, interval_ms=250):
     global base64_collage
     try:
@@ -88,7 +83,7 @@ async def capture_frames_at_intervals(video_file, interval_ms=250):
 
         frames = []
         frame_count = 0
-        previous_text = ""
+        previous_frame_gray = None
 
         # Create directories to save images
         all_frames_dir = os.path.abspath('/app/backend/all_frames')
@@ -104,32 +99,27 @@ async def capture_frames_at_intervals(video_file, interval_ms=250):
             success, frame = video.read()
             if success:
                 frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                try:
-                    text = pytesseract.image_to_string(frame_gray)
-                except Exception as e:
-                    print(f"Error during OCR at {ms} ms: {e}")
-                    continue
 
-                text_diff_ratio = text_difference_ratio(text.strip(), previous_text.strip())
-                if text_diff_ratio > 0.15:  # Check for greater than 15%
-                    frames.append(frame)
-                    frame_count += 1
-                    print(f"Frame at {ms} ms added with text difference ratio: {text_diff_ratio:.2%}")
-                    # Save the selected frame
-                    frame_path = os.path.join(output_frames_dir, f'frame_{ms}.jpg')
-                    plt.figure()
-                    plt.imshow(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-                    plt.title(f'Frame at {ms} ms')
-                    plt.axis('off')
-                    plt.savefig(frame_path)
-                    plt.close()
-                else:
-                    if text_diff_ratio <= 0.10:
-                        print(f"Skipping frame at {ms} ms due to low text difference ratio: {text_diff_ratio:.2%}")
+                if previous_frame_gray is not None:
+                    similarity, _ = ssim(previous_frame_gray, frame_gray, full=True)
+                    difference = 1 - similarity  # SSIM returns similarity not difference
+
+                    if difference > 0.10:  # Check for greater than 1% difference
+                        frames.append(frame)
+                        frame_count += 1
+                        print(f"Frame at {ms} ms added with SSIM difference ratio: {difference:.2%}")
+                        # Save the selected frame
+                        frame_path = os.path.join(output_frames_dir, f'frame_{ms}.jpg')
+                        plt.figure()
+                        plt.imshow(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+                        plt.title(f'Frame at {ms} ms')
+                        plt.axis('off')
+                        plt.savefig(frame_path)
+                        plt.close()
                     else:
-                        print(f"Skipping frame at {ms} ms due to high text difference ratio: {text_diff_ratio:.2%}")
+                        print(f"Skipping frame at {ms} ms due to low SSIM difference ratio: {difference:.2%}")
 
-                previous_text = text
+                previous_frame_gray = frame_gray
 
                 # Save all frames
                 all_frames_path = os.path.join(all_frames_dir, f'frame_{ms}.jpg')
