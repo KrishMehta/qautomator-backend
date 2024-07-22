@@ -142,7 +142,7 @@ async def capture_frames_at_intervals(video_file, interval_ms=250):
 async def generate_func_flow_gemini_collage(file: UploadFile = File(...)):
     print("inside generate_func_flow")
     global base64_collage
-    base64_collage = await capture_frames_at_intervals(file, 1000)
+    base64_collage = await capture_frames_at_intervals(file, 250)
 
     img_data = base64.b64decode(base64_collage)
     img = Image.open(BytesIO(img_data))
