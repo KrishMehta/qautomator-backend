@@ -137,8 +137,8 @@ async def capture_frames_at_intervals(video_file, interval_ms=250):
         video.release()
 
 
-@app.post("/func_flow_gemini_frames/")
-async def generate_func_flow_gemini_frames(file: UploadFile = File(...)):
+@app.post("/func_flow_gemini_collage/")
+async def generate_func_flow_gemini_collage(file: UploadFile = File(...)):
     print("inside generate_func_flow")
     base64_collage = await capture_frames_at_intervals(file, 1000)
 
@@ -193,8 +193,8 @@ async def generate_func_flow_gemini_frames(file: UploadFile = File(...)):
     return {"result": response.text}
 
 
-@app.post("/generate_test_cases_gemini_frames/")
-async def generate_test_cases_gemini_frames(file: UploadFile = File(...),
+@app.post("/generate_test_cases_gemini_collage/")
+async def generate_test_cases_gemini_collage(file: UploadFile = File(...),
                                             application_flow: str = Form(...),
                                             type_of_flow: str = Form(...)):
     print("generating TCs")
@@ -266,8 +266,8 @@ async def generate_test_cases_gemini_frames(file: UploadFile = File(...),
     return {"result": response.text}
 
 
-@app.post("/generate_test_cases_code_gemini_frames")
-async def generate_code_for_test_cases_gemini_frames(file: UploadFile = File(...),
+@app.post("/generate_test_cases_code_gemini_collage")
+async def generate_code_for_test_cases_gemini_collage(file: UploadFile = File(...),
                                                      application_flow: str = Form(...),
                                                      type_of_flow: str = Form(...),
                                                      test_cases_list: str = Form(...),
@@ -539,8 +539,8 @@ def worker(args):
     return func(original_image, test_screen)
 
 
-@app.post("/visual_testing_gemini_frames")
-async def visual_testing_gemini_frames(request: VisualTestingRequest):
+@app.post("/visual_testing_gemini_collage")
+async def visual_testing_gemini_collage(request: VisualTestingRequest):
     # print(request.testScreen)
     # print(request.screen_type)
     # print(request.osType)
@@ -570,8 +570,8 @@ async def visual_testing_gemini_frames(request: VisualTestingRequest):
     }}
 
 
-@app.post("/backend_tc_gen_gemini_frames")
-async def generate_test_cases_for_backend_gemini_frames(request: BackendTestingRequest):
+@app.post("/backend_tc_gen_gemini_collage")
+async def generate_test_cases_for_backend_gemini_collage(request: BackendTestingRequest):
     print("curl", request.curl)
 
     # Create the prompt
@@ -631,8 +631,8 @@ async def generate_test_cases_for_backend_gemini_frames(request: BackendTestingR
     return {"result": response.text}
 
 
-@app.post("/backend_tc_code_gen_gemini_frames")
-async def generate_test_cases_code_for_backend_gemini_frames(request: BackendTestingRequest):
+@app.post("/backend_tc_code_gen_gemini_collage")
+async def generate_test_cases_code_for_backend_gemini_collage(request: BackendTestingRequest):
     # Create the prompt
     prompt = f'''I have developed test cases for by backend application based on the functionality : {request.functionality}, the cURL request: {request.curl},
                 the success : {request.success_response} and the error response : {request.error_response}
