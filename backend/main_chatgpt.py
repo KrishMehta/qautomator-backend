@@ -8,7 +8,6 @@ import tempfile
 
 from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from Levenshtein import distance as levenshtein_distance
 from skimage.metrics import structural_similarity as ssim
 from openai import OpenAI
 from pydantic import BaseModel
@@ -179,8 +178,8 @@ async def capture_frames_at_intervals(video_file, interval_ms=250):
 
 @app.post("/func_flow/")
 async def generate_func_flow(file: UploadFile = File(...)):
-    global base64_collage
     print("inside generate_func_flow")
+    global base64_collage
     base64_collage = await capture_frames_at_intervals(file, 250)
 
     # Prepare prompt messages
