@@ -56,6 +56,8 @@ with open('qautomate/screens_for_visual_testing.json', 'r') as f:
 # Specify the tesseract executable path
 pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
 
+base64_collage = None
+
 
 async def capture_frames_at_intervals(video_file, interval_ms=250):
     global base64_collage
@@ -140,6 +142,7 @@ async def capture_frames_at_intervals(video_file, interval_ms=250):
 @app.post("/func_flow_gemini_collage/")
 async def generate_func_flow_gemini_collage(file: UploadFile = File(...)):
     print("inside generate_func_flow")
+    global base64_collage
     base64_collage = await capture_frames_at_intervals(file, 1000)
 
     img_data = base64.b64decode(base64_collage)
@@ -198,7 +201,9 @@ async def generate_test_cases_gemini_collage(file: UploadFile = File(...),
                                             application_flow: str = Form(...),
                                             type_of_flow: str = Form(...)):
     print("generating TCs")
-    base64_collage = await capture_frames_at_intervals(file, 1000)
+    global base64_collage
+    if base64_collage is None:
+        base64_collage = await capture_frames_at_intervals(file, 250)
 
     img_data = base64.b64decode(base64_collage)
     img = Image.open(BytesIO(img_data))
@@ -277,7 +282,9 @@ async def generate_code_for_test_cases_gemini_collage(file: UploadFile = File(..
 
     test_case_list_obj = json.loads(test_cases_list)
 
-    base64_collage = await capture_frames_at_intervals(file, 1000)
+    global base64_collage
+    if base64_collage is None:
+        base64_collage = await capture_frames_at_intervals(file, 250)
 
     img_data = base64.b64decode(base64_collage)
     img = Image.open(BytesIO(img_data))
