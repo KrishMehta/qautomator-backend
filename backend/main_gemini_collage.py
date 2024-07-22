@@ -13,7 +13,6 @@ from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from skimage.metrics import structural_similarity as ssim
 from pydantic import BaseModel
-import pytesseract
 
 from qautomate.helpers.visual_testing_helper import (
     process_color_in_images,
@@ -51,9 +50,6 @@ with open('qautomate/screen_ui_elements_map_ios.json', 'r') as f:
 
 with open('qautomate/screens_for_visual_testing.json', 'r') as f:
     visual_testing_images = json.load(f)
-
-# Specify the tesseract executable path
-pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
 
 base64_collage = None
 
