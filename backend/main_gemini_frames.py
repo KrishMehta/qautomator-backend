@@ -1,19 +1,14 @@
-import base64
 import cv2
 import vertexai
 import google.generativeai as genai
 import json
 import multiprocessing
-import numpy as np
 import os
 import tempfile
 
-from io import BytesIO
-from PIL import Image
 from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from skimage.metrics import structural_similarity as ssim
-from vertexai.generative_models import GenerativeModel, Part
 from pydantic import BaseModel
 
 from qautomate.helpers.visual_testing_helper import (
@@ -117,11 +112,34 @@ async def capture_frames_at_intervals(video_file, interval_ms=250):
         video.release()
 
 
+async def save_frames_as_images(all_frames):
+    image_paths = []
+    for idx, frame in enumerate(all_frames):
+        image_path = f"/tmp/frame_{idx}.jpg"
+        cv2.imwrite(image_path, frame)
+        image_paths.append(image_path)
+    return image_paths
+
+
+async def upload_images_to_gcs(image_paths):
+    uploaded_files = []
+    for image_path in image_paths:
+        image_file = genai.upload_file(path=image_path)
+        uploaded_files.append(image_file)
+    return uploaded_files
+
+
 @app.post("/func_flow_gemini_frames/")
 async def generate_func_flow_gemini_frames(file: UploadFile = File(...)):
     print("inside generate_func_flow")
     global frames
     frames = await capture_frames_at_intervals(file, 250)
+
+    # Save frames as images
+    image_paths = await save_frames_as_images(frames)
+
+    # Upload images
+    uploaded_files = await upload_images_to_gcs(image_paths)
 
     # Create the prompt
     prompt = '''I am testing an Android application using video analysis to understand its functionality of 
@@ -156,7 +174,7 @@ async def generate_func_flow_gemini_frames(file: UploadFile = File(...)):
 
     # Make the LLM request.
     print("Making LLM inference request...")
-    response = model.generate_content([prompt, frames],
+    response = model.generate_content([prompt] + uploaded_files,
                                       request_options={"timeout": 600})
 
     total_tokens = response.usage_metadata.total_token_count
