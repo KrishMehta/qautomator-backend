@@ -3,6 +3,7 @@ uvicorn
 python-multipart
 opencv-python
 openai
+vertexai
 google.generativeai
 scikit-image
 matplotlib
