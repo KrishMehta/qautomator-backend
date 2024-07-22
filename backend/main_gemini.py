@@ -46,10 +46,13 @@ with open('qautomate/screen_ui_elements_map_ios.json', 'r') as f:
 with open('qautomate/screens_for_visual_testing.json', 'r') as f:
     visual_testing_images = json.load(f)
 
+video_file = None
+
 
 @app.post("/func_flow_gemini/")
 async def generate_func_flow_gemini(file: UploadFile = File(...)):
     print("inside generate_func_flow")
+    global video_file
 
     with tempfile.NamedTemporaryFile(delete=False) as tmp:
         tmp.write(await file.read())
@@ -115,24 +118,26 @@ async def generate_test_cases_gemini(file: UploadFile = File(...),
                                      application_flow: str = Form(...),
                                      type_of_flow: str = Form(...)):
     print("generating TCs")
+    global video_file
 
-    with tempfile.NamedTemporaryFile(delete=False) as tmp:
-        tmp.write(await file.read())
-        video_path = tmp.name
+    if video_file is None:
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            tmp.write(await file.read())
+            video_path = tmp.name
 
-    # Upload the video file
-    print(f"Uploading file...")
-    video_file = genai.upload_file(path=video_path, mime_type="video/mov")
-    print(f"Completed upload: {video_file.uri}")
+        # Upload the video file
+        print(f"Uploading file...")
+        video_file = genai.upload_file(path=video_path, mime_type="video/mov")
+        print(f"Completed upload: {video_file.uri}")
 
-    # Wait for the video file to be processed
-    while video_file.state.name == "PROCESSING":
-        print('.', end='')
-        time.sleep(10)
-        video_file = genai.get_file(video_file.name)
+        # Wait for the video file to be processed
+        while video_file.state.name == "PROCESSING":
+            print('.', end='')
+            time.sleep(10)
+            video_file = genai.get_file(video_file.name)
 
-    if video_file.state.name == "FAILED":
-        raise ValueError(video_file.state.name)
+        if video_file.state.name == "FAILED":
+            raise ValueError(video_file.state.name)
 
     # Create the prompt
     prompt = f'''Based on the detailed functionality flow generated from the video,
@@ -203,26 +208,28 @@ async def generate_code_for_test_cases_gemini(file: UploadFile = File(...),
                                               os_type: str = Form(...)):
     print("TC list", test_cases_list)
     print("OS", os_type)
+    global video_file
 
     test_case_list_obj = json.loads(test_cases_list)
 
-    with tempfile.NamedTemporaryFile(delete=False) as tmp:
-        tmp.write(await file.read())
-        video_path = tmp.name
+    if video_file is None:
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            tmp.write(await file.read())
+            video_path = tmp.name
 
-    # Upload the video file
-    print(f"Uploading file...")
-    video_file = genai.upload_file(path=video_path, mime_type="video/mov")
-    print(f"Completed upload: {video_file.uri}")
+        # Upload the video file
+        print(f"Uploading file...")
+        video_file = genai.upload_file(path=video_path, mime_type="video/mov")
+        print(f"Completed upload: {video_file.uri}")
 
-    # Wait for the video file to be processed
-    while video_file.state.name == "PROCESSING":
-        print('.', end='')
-        time.sleep(10)
-        video_file = genai.get_file(video_file.name)
+        # Wait for the video file to be processed
+        while video_file.state.name == "PROCESSING":
+            print('.', end='')
+            time.sleep(10)
+            video_file = genai.get_file(video_file.name)
 
-    if video_file.state.name == "FAILED":
-        raise ValueError(video_file.state.name)
+        if video_file.state.name == "FAILED":
+            raise ValueError(video_file.state.name)
 
     impacted_screens = set()
     for test_case in test_case_list_obj:
