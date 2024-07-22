@@ -4,7 +4,5 @@ python-multipart
 opencv-python
 openai
 google.generativeai
-pytesseract
-python-Levenshtein
 scikit-image
 matplotlib
