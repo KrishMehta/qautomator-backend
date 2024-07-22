@@ -6,4 +6,5 @@ openai
 google.generativeai
 pytesseract
 python-Levenshtein
+scikit-image
 matplotlib
