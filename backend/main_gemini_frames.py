@@ -12,6 +12,7 @@ from PIL import Image
 from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from Levenshtein import distance as levenshtein_distance
+from skimage.metrics import structural_similarity as ssim
 from pydantic import BaseModel
 import pytesseract
 
@@ -56,13 +57,8 @@ with open('qautomate/screens_for_visual_testing.json', 'r') as f:
 pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
 
 
-def text_difference_ratio(text1, text2):
-    distance = levenshtein_distance(text1, text2)
-    max_length = max(len(text1), len(text2))
-    return distance / max_length if max_length != 0 else 0
-
-
-async def capture_frames_at_intervals(video_file, interval_ms=1000):
+async def capture_frames_at_intervals(video_file, interval_ms=250):
+    global base64_collage
     try:
         with tempfile.NamedTemporaryFile(delete=False) as tmp:
             tmp.write(await video_file.read())
@@ -83,29 +79,30 @@ async def capture_frames_at_intervals(video_file, interval_ms=1000):
 
         frames = []
         frame_count = 0
-        previous_text = ""
+        previous_frame_gray = None
 
         for ms in range(0, duration_ms + 1, interval_ms):  # Include the last frame
             video.set(cv2.CAP_PROP_POS_MSEC, ms)  # Set the position of the video in milliseconds
             success, frame = video.read()
             if success:
                 frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                try:
-                    text = pytesseract.image_to_string(frame_gray)
-                except Exception as e:
-                    print(f"Error during OCR at {ms} ms: {e}")
-                    continue
 
-                text_diff_ratio = text_difference_ratio(text.strip(), previous_text.strip())
-                if text_diff_ratio > 0.10:  # Check for greater than 10% difference
-                    previous_text = text
-                    frames.append(frame)
-                    frame_count += 1
-                    print(f"Frame at {ms} ms added with text difference ratio: {text_diff_ratio:.2%}")
-                else:
-                    print(f"Skipping frame at {ms} ms due to low text difference ratio: {text_diff_ratio:.2%}")
+                if previous_frame_gray is not None:
+                    similarity, _ = ssim(previous_frame_gray, frame_gray, full=True)
+                    difference = 1 - similarity  # SSIM returns similarity not difference
+
+                    if difference > 0.10:  # Check for greater than 10% difference
+                        frames.append(frame)
+                        frame_count += 1
+                        print(f"Frame at {ms} ms added with SSIM difference ratio: {difference:.2%}")
+                    else:
+                        print(f"Skipping frame at {ms} ms due to low SSIM difference ratio: {difference:.2%}")
+
+                previous_frame_gray = frame_gray
             else:
                 print(f"Warning: Frame at {ms} ms could not be read.")
+
+        print(f"{frame_count} frames read and selected (every {interval_ms} ms).")
 
         if not frames:
             raise ValueError("No frames selected for the collage.")
