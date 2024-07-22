@@ -11,7 +11,6 @@ from io import BytesIO
 from PIL import Image
 from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from Levenshtein import distance as levenshtein_distance
 from skimage.metrics import structural_similarity as ssim
 from pydantic import BaseModel
 import pytesseract
