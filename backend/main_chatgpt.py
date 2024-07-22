@@ -11,7 +11,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from skimage.metrics import structural_similarity as ssim
 from openai import OpenAI
 from pydantic import BaseModel
-import pytesseract
 import matplotlib.pyplot as plt
 
 from qautomate.helpers.visual_testing_helper import (
@@ -50,9 +49,6 @@ with open('qautomate/screen_ui_elements_map_ios.json', 'r') as f:
 
 with open('qautomate/screens_for_visual_testing.json', 'r') as f:
     visual_testing_images = json.load(f)
-
-# Specify the tesseract executable path
-pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
 
 input_cost_per_million = 0.15  # 15 cents per 1M input tokens
 output_cost_per_million = 0.60  # 60 cents per 1M output tokens
