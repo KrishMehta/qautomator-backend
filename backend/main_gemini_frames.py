@@ -1,5 +1,6 @@
 import base64
 import cv2
+import vertexai
 import google.generativeai as genai
 import json
 import multiprocessing
@@ -12,6 +13,7 @@ from PIL import Image
 from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from skimage.metrics import structural_similarity as ssim
+from vertexai.generative_models import GenerativeModel, Part
 from pydantic import BaseModel
 
 from qautomate.helpers.visual_testing_helper import (
@@ -36,6 +38,9 @@ if not gemini_key:
     raise ValueError("No Gemini API key found in environment variable 'GOOGLE_API_KEY'")
 genai.configure(api_key=gemini_key)
 
+project_id = "gen-lang-client-0083075029"
+vertexai.init(project=project_id, location="us-central1")
+
 all_screens = {
     "home_screen": "The main screen allows users to book trains, flights, buses, and hotels, with search fields for train routes, date selection, and options for checking running status and PNR status. Key UI elements include tabs for different transportation modes, search functionality, and quick access to services like seat availability and food orders.",
     "pnr_status_screen": "This screen allows users to check their train PNR status by entering their 10-digit PNR number. It also provides quick access to features like coach and seat information, platform locator, refund calculator, and ixigo AU card services.",
@@ -51,11 +56,11 @@ with open('qautomate/screen_ui_elements_map_ios.json', 'r') as f:
 with open('qautomate/screens_for_visual_testing.json', 'r') as f:
     visual_testing_images = json.load(f)
 
-base64_collage = None
+frames = None
 
 
 async def capture_frames_at_intervals(video_file, interval_ms=250):
-    global base64_collage
+    global frames
     try:
         with tempfile.NamedTemporaryFile(delete=False) as tmp:
             tmp.write(await video_file.read())
@@ -102,31 +107,9 @@ async def capture_frames_at_intervals(video_file, interval_ms=250):
         print(f"{frame_count} frames read and selected (every {interval_ms} ms).")
 
         if not frames:
-            raise ValueError("No frames selected for the collage.")
+            raise ValueError("No frames selected.")
 
-        grid_size = int(np.ceil(np.sqrt(len(frames))))
-        frame_height, frame_width, _ = frames[0].shape
-
-        collage_height = grid_size * frame_height
-        collage_width = grid_size * frame_width
-        collage = np.zeros((collage_height, collage_width, 3), dtype=np.uint8)
-
-        for idx, frame in enumerate(frames):
-            row = idx // grid_size
-            col = idx % grid_size
-            y = row * frame_height
-            x = col * frame_width
-            collage[y:y + frame_height, x:x + frame_width] = frame
-
-        # Resize the collage to the specified width
-        max_width = 768
-        scaling_factor = max_width / collage_width
-        resized_collage = cv2.resize(collage, (max_width, int(collage_height * scaling_factor)))
-
-        _, buffer = cv2.imencode(".jpg", resized_collage)
-        base64_collage = base64.b64encode(buffer).decode("utf-8")
-
-        return base64_collage
+        return frames
 
     except Exception as e:
         print(f"An error occurred: {e}")
@@ -134,32 +117,24 @@ async def capture_frames_at_intervals(video_file, interval_ms=250):
         video.release()
 
 
-@app.post("/func_flow_gemini_collage/")
-async def generate_func_flow_gemini_collage(file: UploadFile = File(...)):
+@app.post("/func_flow_gemini_frames/")
+async def generate_func_flow_gemini_frames(file: UploadFile = File(...)):
     print("inside generate_func_flow")
-    global base64_collage
-    base64_collage = await capture_frames_at_intervals(file, 250)
-
-    img_data = base64.b64decode(base64_collage)
-    img = Image.open(BytesIO(img_data))
-    img.save("collage.jpg")
-
-    image_file = genai.upload_file(path="collage.jpg")
+    global frames
+    frames = await capture_frames_at_intervals(file, 250)
 
     # Create the prompt
     prompt = '''I am testing an Android application using video analysis to understand its functionality of 
     scheduled flight status flow. Specifically, I need to analyze the video frames of the application to generate a detailed functionality flow based on user interactions, focusing on the static UI elements and predefined states.
-    
-    The video frames have been captured and arranged into a collage image. The collage should be read from left to right and top to bottom. Each row of the collage represents a sequence of frames captured at regular intervals.
                 
     Please follow these steps:
                 
-    1. **Analyze the Collage:**
-        - Observe the collage image to identify the sequence of user interactions with the application.
+    1. **Analyze the Video Frames:**
+        - Observe the video frames to identify the sequence of user interactions with the application.
         - Note down each step in detail, including any screen transitions, user inputs, and system responses, focusing on static UI elements and not on dynamic data from API responses.
                 
     2. **Generate the Functional Flow:**
-        - Provide a detailed flow of the feature based on the observed interactions in the collage.
+        - Provide a detailed flow of the feature based on the observed interactions in the video frames.
         - Clearly depict each step, including relevant conditions or branching logic triggered by user interactions or predictable system responses.
         - Ensure that each step is described in the order it occurs, emphasizing static elements like buttons, input fields, labels, and predefined messages.
                 
@@ -170,18 +145,18 @@ async def generate_func_flow_gemini_collage(file: UploadFile = File(...)):
     - Step 2: [Description of subsequent interaction and app response, focusing on static elements, e.g., "User navigates to the main screen and sees options for Trains, Flights, Buses, and Hotels."]
     - Step 3: [Repeat for each step observed, describing user interactions and static components only.]
                 
-    Focus: Capture the functionality flow based on user interactions as seen in the collage, 
+    Focus: Capture the functionality flow based on user interactions as seen in the video frames, 
     concentrating on static UI elements and avoiding reliance on dynamic data. Each step should be clear and concise, 
     capturing the essence of user actions and predictable app behavior.
                 
-    This is a collage of frames from a video that I want to upload.'''
+    These are the frames from a video that I want to upload.'''
 
     # Set the model to Gemini 1.5 Pro.
     model = genai.GenerativeModel(model_name="models/gemini-1.5-pro-latest")
 
     # Make the LLM request.
     print("Making LLM inference request...")
-    response = model.generate_content([prompt, image_file],
+    response = model.generate_content([prompt, frames],
                                       request_options={"timeout": 600})
 
     total_tokens = response.usage_metadata.total_token_count
@@ -191,20 +166,14 @@ async def generate_func_flow_gemini_collage(file: UploadFile = File(...)):
     return {"result": response.text}
 
 
-@app.post("/generate_test_cases_gemini_collage/")
-async def generate_test_cases_gemini_collage(file: UploadFile = File(...),
+@app.post("/generate_test_cases_gemini_frames/")
+async def generate_test_cases_gemini_frames(file: UploadFile = File(...),
                                              application_flow: str = Form(...),
                                              type_of_flow: str = Form(...)):
     print("generating TCs")
-    global base64_collage
-    if base64_collage is None:
-        base64_collage = await capture_frames_at_intervals(file, 250)
-
-    img_data = base64.b64decode(base64_collage)
-    img = Image.open(BytesIO(img_data))
-    img.save("collage.jpg")
-
-    image_file = genai.upload_file(path="collage.jpg")
+    global frames
+    if frames is None:
+        frames = await capture_frames_at_intervals(file, 250)
 
     # Create the prompt
     prompt = f'''Based on the detailed functionality flow generated from the video frames,
@@ -249,14 +218,14 @@ async def generate_test_cases_gemini_collage(file: UploadFile = File(...),
         2. [Continue steps]
     - **Expected Outcome:** [Specific expected results]
 
-    This is a collage of frames from a video that I want to upload.'''
+    These are the frames from a video that I want to upload.'''
 
     # Set the model to Gemini 1.5 Pro.
     model = genai.GenerativeModel(model_name="models/gemini-1.5-pro-latest")
 
     # Make the LLM request.
     print("Making LLM inference request...")
-    response = model.generate_content([prompt, image_file],
+    response = model.generate_content([prompt, frames],
                                       request_options={"timeout": 600})
 
     total_tokens = response.usage_metadata.total_token_count
@@ -266,8 +235,8 @@ async def generate_test_cases_gemini_collage(file: UploadFile = File(...),
     return {"result": response.text}
 
 
-@app.post("/generate_test_cases_code_gemini_collage")
-async def generate_code_for_test_cases_gemini_collage(file: UploadFile = File(...),
+@app.post("/generate_test_cases_code_gemini_frames")
+async def generate_code_for_test_cases_gemini_frames(file: UploadFile = File(...),
                                                       application_flow: str = Form(...),
                                                       type_of_flow: str = Form(...),
                                                       test_cases_list: str = Form(...),
@@ -277,15 +246,9 @@ async def generate_code_for_test_cases_gemini_collage(file: UploadFile = File(..
 
     test_case_list_obj = json.loads(test_cases_list)
 
-    global base64_collage
-    if base64_collage is None:
-        base64_collage = await capture_frames_at_intervals(file, 250)
-
-    img_data = base64.b64decode(base64_collage)
-    img = Image.open(BytesIO(img_data))
-    img.save("collage.jpg")
-
-    image_file = genai.upload_file(path="collage.jpg")
+    global frames
+    if frames is None:
+        frames = await capture_frames_at_intervals(file, 250)
 
     impacted_screens = set()
     for test_case in test_case_list_obj:
@@ -390,7 +353,7 @@ async def generate_code_for_test_cases_gemini_collage(file: UploadFile = File(..
         # Verify that the button is disabled
         assert not search_button.is_enabled(), "The search button should be disabled for invalid PNR input"
 
-    This is a collage of frames from a video that I want to upload.'''
+    These are the frames from a video that I want to upload.'''
 
     # Create the prompt
     prompt_ios = f'''I have developed test cases for an iOS application based on the {type_of_flow} functionality.
@@ -501,7 +464,7 @@ async def generate_code_for_test_cases_gemini_collage(file: UploadFile = File(..
         }}
     }}
 
-    This is a collage of frames from a video that I want to upload.'''
+    These are the frames from a video that I want to upload.'''
 
     # Set the model to Gemini 1.5 Pro.
     model = genai.GenerativeModel(model_name="models/gemini-1.5-pro-latest")
@@ -509,10 +472,10 @@ async def generate_code_for_test_cases_gemini_collage(file: UploadFile = File(..
     # Make the LLM request.
     print("Making LLM inference request...")
     if os_type == 'android':
-        response = model.generate_content([prompt_android, image_file],
+        response = model.generate_content([prompt_android, frames],
                                           request_options={"timeout": 600})
     else:
-        response = model.generate_content([prompt_ios, image_file],
+        response = model.generate_content([prompt_ios, frames],
                                           request_options={"timeout": 600})
 
     total_tokens = response.usage_metadata.total_token_count
@@ -541,8 +504,8 @@ def worker(args):
     return func(original_image, test_screen)
 
 
-@app.post("/visual_testing_gemini_collage")
-async def visual_testing_gemini_collage(request: VisualTestingRequest):
+@app.post("/visual_testing_gemini_frames")
+async def visual_testing_gemini_frames(request: VisualTestingRequest):
     # print(request.testScreen)
     # print(request.screen_type)
     # print(request.osType)
@@ -572,8 +535,8 @@ async def visual_testing_gemini_collage(request: VisualTestingRequest):
     }}
 
 
-@app.post("/backend_tc_gen_gemini_collage")
-async def generate_test_cases_for_backend_gemini_collage(request: BackendTestingRequest):
+@app.post("/backend_tc_gen_gemini_frames")
+async def generate_test_cases_for_backend_gemini_frames(request: BackendTestingRequest):
     print("curl", request.curl)
 
     # Create the prompt
@@ -633,8 +596,8 @@ async def generate_test_cases_for_backend_gemini_collage(request: BackendTesting
     return {"result": response.text}
 
 
-@app.post("/backend_tc_code_gen_gemini_collage")
-async def generate_test_cases_code_for_backend_gemini_collage(request: BackendTestingRequest):
+@app.post("/backend_tc_code_gen_gemini_frames")
+async def generate_test_cases_code_for_backend_gemini_frames(request: BackendTestingRequest):
     # Create the prompt
     prompt = f'''I have developed test cases for by backend application based on the functionality : {request.functionality}, the cURL request: {request.curl},
                 the success : {request.success_response} and the error response : {request.error_response}
