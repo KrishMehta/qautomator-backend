@@ -275,6 +275,8 @@ async def generate_test_cases(file: UploadFile = File(...),
                     Please make sure that the test cases are comprehensive, covering all possible scenarios as observed in the video frames, and have expected outcomes based on static UI elements in the video frames and not dependent on dynamic data from APIs.
                     All Screens available {all_screens}
                     
+                    Note: The names of the impacted screens should match the following list exactly: {list(screen_mapper_ios.keys())}.
+    
                     ### Instructions:
 
                     1. **Review the Functional Flow:**
@@ -291,7 +293,6 @@ async def generate_test_cases(file: UploadFile = File(...),
                          - Step-by-step instructions based on observed interactions in the video frames
                          - Specific and measurable expected outcomes based solely on static UI elements (e.g., presence of buttons, input fields, labels)
                          - Identification of edge cases and potential user errors (e.g., incorrect inputs, system errors)
-
 
                         Example Structure:
 
