@@ -379,9 +379,9 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
 
     print("impacted_screens", impacted_screens)
     screen_mapper = screen_mapper_android if os_type == "android" else screen_mapper_ios
-    print("screen_mapper", screen_mapper)
+    # print("screen_mapper", screen_mapper)
     screen_data = {screen: screen_mapper.get(screen, {}) for screen in impacted_screens}
-    print("Screen Data:", screen_data)
+    # print("Screen Data:", screen_data)
 
     prompt_messages_for_android = [
         {
