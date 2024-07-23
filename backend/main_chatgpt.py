@@ -258,7 +258,7 @@ async def generate_test_cases(file: UploadFile = File(...),
                               application_flow: str = Form(...),
                               type_of_flow: str = Form(...)
                               ):
-    print("generating TCs")
+    print("inside generate_test_cases")
     global base64_collage
     if base64_collage is None:
         base64_collage = await capture_frames_at_intervals(file, 250)
@@ -359,7 +359,7 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
                                        test_cases_list: str = Form(...),
                                        os_type: str = Form(...),
                                        ):
-    print("TC list", test_cases_list)
+    print("inside generate_code_for_test_cases")
     print("OS", os_type)
 
     test_case_list_obj = json.loads(test_cases_list)
