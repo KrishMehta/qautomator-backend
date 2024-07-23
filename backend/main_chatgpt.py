@@ -273,9 +273,6 @@ async def generate_test_cases(file: UploadFile = File(...),
                     I need to create comprehensive UI-based test cases for the functionality of {type_of_flow}, based on the detailed functionality flow generated from the video frames.
 
                     Please make sure that the test cases are comprehensive, covering all possible scenarios as observed in the video frames, and have expected outcomes based on static UI elements in the video frames and not dependent on dynamic data from APIs.
-                    All Screens available {all_screens}
-                    
-                    Note: The names of the impacted screens should match the following list exactly: {list(screen_mapper_ios.keys())}.
     
                     ### Instructions:
 
@@ -311,8 +308,12 @@ async def generate_test_cases(file: UploadFile = File(...),
                           1. [Step-by-step instructions]
                           2. [Continue steps]
                         - **Expected Outcome:** [Specific expected results]
-
-                         This is a collage of frames from a video that I want to upload.'''
+                        
+                    Note: The names of the impacted screens should match the following list exactly: {list(screen_mapper_ios.keys())}.
+                        
+                    These are all the screens that are available: {all_screens}
+                    
+                    This is a collage of frames from a video that I want to upload.'''
                 },
                 {
                     "type": "image_url",
