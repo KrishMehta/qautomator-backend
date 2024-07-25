@@ -1,6 +1,7 @@
 import base64
 import cv2
 import json
+import logging
 import multiprocessing
 import numpy as np
 import os
@@ -19,6 +20,10 @@ from qautomate.helpers.visual_testing_helper import (
     process_text_in_images,
     visual_analyze
 )
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 app.add_middleware(
@@ -72,9 +77,9 @@ async def capture_frames_at_intervals(video_file, interval_ms=250):
         total_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
         duration_ms = int((total_frames / fps) * 1000)
 
-        print(f"Video FPS: {fps}")
-        print(f"Total frames: {total_frames}")
-        print(f"Estimated duration (milliseconds): {duration_ms}")
+        logger.info(f"Video FPS: {fps}")
+        logger.info(f"Total frames: {total_frames}")
+        logger.info(f"Estimated duration (milliseconds): {duration_ms}")
 
         frames = []
         frame_count = 0
@@ -102,7 +107,7 @@ async def capture_frames_at_intervals(video_file, interval_ms=250):
                     if difference > 0.10:  # Check for greater than 10% difference
                         frames.append(frame)
                         frame_count += 1
-                        print(f"Frame at {ms} ms added with SSIM difference ratio: {difference:.2%}")
+                        logger.info(f"Frame at {ms} ms added with SSIM difference ratio: {difference:.2%}")
                         # Save the selected frame
                         frame_path = os.path.join(output_frames_dir, f'frame_{ms}.jpg')
                         plt.figure()
@@ -112,7 +117,7 @@ async def capture_frames_at_intervals(video_file, interval_ms=250):
                         plt.savefig(frame_path)
                         plt.close()
                     else:
-                        print(f"Skipping frame at {ms} ms due to low SSIM difference ratio: {difference:.2%}")
+                        logger.info(f"Skipping frame at {ms} ms due to low SSIM difference ratio: {difference:.2%}")
 
                 previous_frame_gray = frame_gray
 
@@ -125,9 +130,9 @@ async def capture_frames_at_intervals(video_file, interval_ms=250):
                 plt.savefig(all_frames_path)
                 plt.close()
             else:
-                print(f"Warning: Frame at {ms} ms could not be read.")
+                logger.warning(f"Warning: Frame at {ms} ms could not be read.")
 
-        print(f"{frame_count} frames read and selected (every {interval_ms} ms).")
+        logger.info(f"{frame_count} frames read and selected (every {interval_ms} ms).")
 
         if not frames:
             raise ValueError("No frames selected for the collage.")
@@ -156,7 +161,7 @@ async def capture_frames_at_intervals(video_file, interval_ms=250):
 
         # Save and display the final collage
         collage_path = os.path.join(output_frames_dir, 'final_collage.jpg')
-        print(f'Saving final collage to {collage_path}')
+        logger.info(f'Saving final collage to {collage_path}')
         plt.figure(figsize=(10, 10))
         plt.imshow(cv2.cvtColor(resized_collage, cv2.COLOR_BGR2RGB))
         plt.title('Final Collage')
@@ -167,14 +172,14 @@ async def capture_frames_at_intervals(video_file, interval_ms=250):
         return base64_collage
 
     except Exception as e:
-        print(f"An error occurred: {e}")
+        logger.error(f"An error occurred: {e}")
     finally:
         video.release()
 
 
 @app.post("/func_flow/")
 async def generate_func_flow(file: UploadFile = File(...)):
-    print("inside generate_func_flow")
+    logger.info("inside generate_func_flow")
     global base64_collage
     base64_collage = await capture_frames_at_intervals(file, 250)
 
@@ -233,7 +238,7 @@ async def generate_func_flow(file: UploadFile = File(...)):
     }
 
     result = client.chat.completions.create(**params)
-    print("result", result.choices[0].message.content)
+    logger.info("result: %s", result.choices[0].message.content)
 
     input_tokens = result.usage.prompt_tokens
     output_tokens = result.usage.completion_tokens
@@ -243,12 +248,12 @@ async def generate_func_flow(file: UploadFile = File(...)):
     output_cost = (output_tokens / 1_000_000) * output_cost_per_million
     total_cost = input_cost + output_cost
 
-    print(f"Input tokens: {input_tokens}")
-    print(f"Output tokens: {output_tokens}")
-    print(f"Total tokens: {total_tokens}")
-    print(f"Input cost: ${input_cost:.6f}")
-    print(f"Output cost: ${output_cost:.6f}")
-    print(f"Total cost: ${total_cost:.6f}")
+    logger.info(f"Input tokens: {input_tokens}")
+    logger.info(f"Output tokens: {output_tokens}")
+    logger.info(f"Total tokens: {total_tokens}")
+    logger.info(f"Input cost: ${input_cost:.6f}")
+    logger.info(f"Output cost: ${output_cost:.6f}")
+    logger.info(f"Total cost: ${total_cost:.6f}")
 
     return {"result": result.choices[0].message.content}
 
@@ -258,7 +263,7 @@ async def generate_test_cases(file: UploadFile = File(...),
                               application_flow: str = Form(...),
                               type_of_flow: str = Form(...)
                               ):
-    print("inside generate_test_cases")
+    logger.info("inside generate_test_cases")
     global base64_collage
     if base64_collage is None:
         base64_collage = await capture_frames_at_intervals(file, 250)
@@ -334,7 +339,7 @@ async def generate_test_cases(file: UploadFile = File(...),
     }
 
     result = client.chat.completions.create(**params)
-    print("result", result.choices[0].message.content)
+    logger.info("result: %s", result.choices[0].message.content)
 
     input_tokens = result.usage.prompt_tokens
     output_tokens = result.usage.completion_tokens
@@ -344,12 +349,12 @@ async def generate_test_cases(file: UploadFile = File(...),
     output_cost = (output_tokens / 1_000_000) * output_cost_per_million
     total_cost = input_cost + output_cost
 
-    print(f"Input tokens: {input_tokens}")
-    print(f"Output tokens: {output_tokens}")
-    print(f"Total tokens: {total_tokens}")
-    print(f"Input cost: ${input_cost:.6f}")
-    print(f"Output cost: ${output_cost:.6f}")
-    print(f"Total cost: ${total_cost:.6f}")
+    logger.info(f"Input tokens: {input_tokens}")
+    logger.info(f"Output tokens: {output_tokens}")
+    logger.info(f"Total tokens: {total_tokens}")
+    logger.info(f"Input cost: ${input_cost:.6f}")
+    logger.info(f"Output cost: ${output_cost:.6f}")
+    logger.info(f"Total cost: ${total_cost:.6f}")
 
     return {"result": result.choices[0].message.content}
 
@@ -361,8 +366,8 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
                                        test_cases_list: str = Form(...),
                                        os_type: str = Form(...),
                                        ):
-    print("inside generate_code_for_test_cases")
-    print("OS", os_type)
+    logger.info("inside generate_code_for_test_cases")
+    logger.info("OS: %s", os_type)
 
     test_case_list_obj = json.loads(test_cases_list)
 
@@ -377,7 +382,7 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
             screens = [screen.strip() for screen in line.replace("- **Impacted Screens:**", "").split(",")]
             impacted_screens.update(screens)
 
-    print("impacted_screens", impacted_screens)
+    logger.info("impacted_screens: %s", impacted_screens)
     screen_mapper = screen_mapper_android if os_type == "android" else screen_mapper_ios
     # print("screen_mapper", screen_mapper)
     screen_data = {screen: screen_mapper.get(screen, {}) for screen in impacted_screens}
@@ -625,7 +630,7 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
     }
 
     result = client.chat.completions.create(**params)
-    print("result", result.choices[0].message.content)
+    logger.info("result: %s", result.choices[0].message.content)
 
     input_tokens = result.usage.prompt_tokens
     output_tokens = result.usage.completion_tokens
@@ -635,12 +640,12 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
     output_cost = (output_tokens / 1_000_000) * output_cost_per_million
     total_cost = input_cost + output_cost
 
-    print(f"Input tokens: {input_tokens}")
-    print(f"Output tokens: {output_tokens}")
-    print(f"Total tokens: {total_tokens}")
-    print(f"Input cost: ${input_cost:.6f}")
-    print(f"Output cost: ${output_cost:.6f}")
-    print(f"Total cost: ${total_cost:.6f}")
+    logger.info(f"Input tokens: {input_tokens}")
+    logger.info(f"Output tokens: {output_tokens}")
+    logger.info(f"Total tokens: {total_tokens}")
+    logger.info(f"Input cost: ${input_cost:.6f}")
+    logger.info(f"Output cost: ${output_cost:.6f}")
+    logger.info(f"Total cost: ${total_cost:.6f}")
 
     return {"result": result.choices[0].message.content}
 
@@ -666,7 +671,7 @@ def worker(args):
 
 @app.post("/visual_testing")
 async def visual_testing(request: VisualTestingRequest):
-    print("visual testing started")
+    logger.info("visual testing started")
     original_image = visual_testing_images.get(request.osType).get(request.screen_type)
 
     # Define the functions and their arguments
@@ -694,7 +699,7 @@ async def visual_testing(request: VisualTestingRequest):
 
 @app.post("/backend_tc_gen")
 async def generate_test_cases_for_backend(request: BackendTestingRequest):
-    print("curl", request.curl)
+    logger.info("curl: %s", request.curl)
 
     prompt_messages = [
         {
@@ -756,7 +761,7 @@ async def generate_test_cases_for_backend(request: BackendTestingRequest):
     }
 
     result = client.chat.completions.create(**params)
-    print("result", result.choices[0].message.content)
+    logger.info("result: %s", result.choices[0].message.content)
 
     input_tokens = result.usage.prompt_tokens
     output_tokens = result.usage.completion_tokens
@@ -766,12 +771,12 @@ async def generate_test_cases_for_backend(request: BackendTestingRequest):
     output_cost = (output_tokens / 1_000_000) * output_cost_per_million
     total_cost = input_cost + output_cost
 
-    print(f"Input tokens: {input_tokens}")
-    print(f"Output tokens: {output_tokens}")
-    print(f"Total tokens: {total_tokens}")
-    print(f"Input cost: ${input_cost:.6f}")
-    print(f"Output cost: ${output_cost:.6f}")
-    print(f"Total cost: ${total_cost:.6f}")
+    logger.info(f"Input tokens: {input_tokens}")
+    logger.info(f"Output tokens: {output_tokens}")
+    logger.info(f"Total tokens: {total_tokens}")
+    logger.info(f"Input cost: ${input_cost:.6f}")
+    logger.info(f"Output cost: ${output_cost:.6f}")
+    logger.info(f"Total cost: ${total_cost:.6f}")
 
     return {"result": result.choices[0].message.content}
 
@@ -866,7 +871,7 @@ async def generate_test_cases_code_for_backend(request: BackendTestingRequest):
     }
 
     result = client.chat.completions.create(**params)
-    print("result", result.choices[0].message.content)
+    logger.info("result: %s", result.choices[0].message.content)
 
     input_tokens = result.usage.prompt_tokens
     output_tokens = result.usage.completion_tokens
@@ -876,12 +881,12 @@ async def generate_test_cases_code_for_backend(request: BackendTestingRequest):
     output_cost = (output_tokens / 1_000_000) * output_cost_per_million
     total_cost = input_cost + output_cost
 
-    print(f"Input tokens: {input_tokens}")
-    print(f"Output tokens: {output_tokens}")
-    print(f"Total tokens: {total_tokens}")
-    print(f"Input cost: ${input_cost:.6f}")
-    print(f"Output cost: ${output_cost:.6f}")
-    print(f"Total cost: ${total_cost:.6f}")
+    logger.info(f"Input tokens: {input_tokens}")
+    logger.info(f"Output tokens: {output_tokens}")
+    logger.info(f"Total tokens: {total_tokens}")
+    logger.info(f"Input cost: ${input_cost:.6f}")
+    logger.info(f"Output cost: ${output_cost:.6f}")
+    logger.info(f"Total cost: ${total_cost:.6f}")
 
     return {"result": result.choices[0].message.content}
 
