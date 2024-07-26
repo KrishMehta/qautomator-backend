@@ -314,7 +314,7 @@ async def generate_test_cases(file: UploadFile = File(...),
                           2. [Continue steps]
                         - **Expected Outcome:** [Specific expected results]
                         
-                    Note: The names of the impacted screens should match the following list exactly: {list(screen_mapper_ios.keys())}.
+                    Note: The names of the impacted screens should match the following list exactly: {list(screen_mapper_android.keys())}.
                         
                     These are all the screens that are available: {all_screens}
                     
