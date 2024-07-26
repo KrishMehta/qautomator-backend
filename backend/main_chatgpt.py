@@ -260,8 +260,7 @@ async def generate_func_flow(file: UploadFile = File(...)):
 
 @app.post("/generate_test_cases/")
 async def generate_test_cases(file: UploadFile = File(...),
-                              application_flow: str = Form(...),
-                              type_of_flow: str = Form(...)
+                              application_flow: str = Form(...)
                               ):
     logger.info("inside generate_test_cases")
     global base64_collage
@@ -275,7 +274,7 @@ async def generate_test_cases(file: UploadFile = File(...),
                 {
                     "type": "text",
                     "text": f'''Based on the detailed functionality flow generated from the video frames,
-                    I need to create comprehensive UI-based test cases for the functionality of {type_of_flow}, based on the detailed functionality flow generated from the video frames.
+                    I need to create comprehensive UI-based test cases based on the detailed functionality flow generated from the video frames.
 
                     Please make sure that the test cases are comprehensive, covering all possible scenarios as observed in the video frames, and have expected outcomes based on static UI elements in the video frames and not dependent on dynamic data from APIs.
     
@@ -362,7 +361,6 @@ async def generate_test_cases(file: UploadFile = File(...),
 @app.post("/generate_test_cases_code")
 async def generate_code_for_test_cases(file: UploadFile = File(...),
                                        application_flow: str = Form(...),
-                                       type_of_flow: str = Form(...),
                                        test_cases_list: str = Form(...),
                                        os_type: str = Form(...),
                                        ):
@@ -394,7 +392,7 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
             "content": [
                 {
                     "type": "text",
-                    "text": f'''I have developed test cases for an Android application based on the {type_of_flow} functionality.
+                    "text": f'''I have developed test cases for an Android application.
                     Using the provided video frames, functional flow, the xpaths of UI elements, and test cases,
                     I need to generate Appium code with appropriate assertions and comments and automate the testing of this
                     specific functionality.
@@ -501,7 +499,7 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
             "content": [
                 {
                     "type": "text",
-                    "text": f'''I have developed test cases for an iOS application based on the {type_of_flow} functionality.
+                    "text": f'''I have developed test cases for an iOS application.
                     Using the provided video frames, functional flow, the xpaths of UI elements, and test cases,
                     I need to generate Appium code in JavaScript with appropriate assertions and comments and automate the testing of this
                     specific functionality.
