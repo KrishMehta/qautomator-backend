@@ -40,7 +40,7 @@ with open(video_file_path, "rb") as file:
         data={
             "application_flow": func_flow_result,
             "test_cases_list": json.dumps(test_cases_result),
-            "os_type": "ios"
+            "os_type": "android"
         }
     )
     response.raise_for_status()
