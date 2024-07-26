@@ -6,3 +6,4 @@ backend/qautomate/helpers/__pycache__/*
 /backend/myenv/
 /venv/
 .idea/*
+.DS_Store
