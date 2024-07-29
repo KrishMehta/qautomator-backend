@@ -104,7 +104,7 @@ async def capture_frames_at_intervals(video_file, interval_ms=250):
                     similarity, _ = ssim(previous_frame_gray, frame_gray, full=True)
                     difference = 1 - similarity  # SSIM returns similarity not difference
 
-                    if difference > 0.05:  # Check for greater than 5% difference
+                    if difference > 0.01:  # Check for greater than 1% difference
                         frames.append(frame)
                         frame_count += 1
                         logger.info(f"Frame at {ms} ms added with SSIM difference ratio: {difference:.2%}")
