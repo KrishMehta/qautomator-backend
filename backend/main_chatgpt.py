@@ -190,8 +190,8 @@ async def generate_func_flow(file: UploadFile = File(...)):
             "content": [
                 {
                     "type": "text",
-                    "text": '''I am testing an Android application using video analysis to understand its functionality of 
-                    scheduled flight status flow. Specifically, I need to analyze the video frames of the application to generate a detailed functionality flow based on user interactions, focusing on the static UI elements and predefined states.
+                    "text": '''I am testing an Android application using video analysis to understand its functionality.
+                    Specifically, I need to analyze the video frames of the application to generate a detailed functionality flow based on user interactions, focusing on the static UI elements and predefined states.
                 
                     The video frames have been captured and arranged into a collage image. The collage should be read from left to right and top to bottom. Each row of the collage represents a sequence of frames captured at regular intervals.
                 
