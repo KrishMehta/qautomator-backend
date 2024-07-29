@@ -377,7 +377,7 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
     lines = test_case_list_obj.split("\n")
     for line in lines:
         if line.startswith("- **Impacted Screens:**"):
-            screens = [screen.strip() for screen in line.replace("- **Impacted Screens:**", "").split(",")]
+            screens = [screen.strip().strip("[]") for screen in line.replace("- **Impacted Screens:**", "").split(",")]
             impacted_screens.update(screens)
 
     logger.info("impacted_screens: %s", impacted_screens)
