@@ -415,71 +415,40 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
 
                         def test_case_1(self):
                             """
-                            Verify the "PNR Status" option is visible and selectable on the Home screen.
-                            Steps:
-                                1. Navigate to the Home screen.
-                                2. Locate the "PNR Status" button.
-                                3. Tap on the "PNR Status" button.
-                            Expected Outcome: User is navigated to the PNR Status screen.
+                            Verify that the app launches and displays the home screen with app icons.
                             """
-                            # Wait for the Home screen to load and locate the "PNR Status" button
-                            WebDriverWait(self.driver, 10).until(
-                                EC.presence_of_element_located((AppiumBy.XPATH, "//android.widget.TextView[@text='PNR Status']"))
-                            )
-                            pnr_status_button = self.driver.find_element(AppiumBy.XPATH, "//android.widget.TextView[@text='PNR Status']")
-                            self.assertTrue(pnr_status_button.is_displayed())
-
-                            # Tap on the "PNR Status" button
-                            pnr_status_button.click()
-
-                            # Wait for the PNR Status screen to load
-                            WebDriverWait(self.driver, 10).until(
-                                EC.presence_of_element_located((AppiumBy.XPATH, "//android.widget.EditText[@text='Enter your 10 digit PNR']"))
-                            )
-                            self.assertTrue(self.driver.find_element(AppiumBy.XPATH,
-                                                                     "//android.widget.EditText[@text='Enter your 10 digit PNR']").is_displayed())
+                            try:
+                                WebDriverWait(self.driver, 10).until(
+                                    EC.presence_of_element_located((AppiumBy.XPATH, "//android.widget.TextView[@text='Trains']"))
+                                )
+                                assert self.driver.find_element(AppiumBy.XPATH, "//android.widget.TextView[@text='Trains']").is_displayed()
+                                logging.info("Test Case 1 passed: Home screen loaded successfully")
+                            except Exception as e:
+                                logging.error(f"Test Case 1 failed: {{e}}")
+                                raise
 
                         def test_case_2(self):
                             """
-                            Verify user can enter a valid PNR number.
-                            Steps:
-                                1. Navigate to the PNR Status screen.
-                                2. Enter a valid 10-digit PNR number in the input field.
-                                3. Tap the "Search" button.
-                            Expected Outcome: The input field accepts the PNR number, and the user can tap the search button.
+                            Verify that the PNR status screen displays the correct title and input field.
                             """
-                            # Navigate to the PNR Status screen (same steps as Test Case 1)
-                            self.test_case_1()
+                            try:
+                                WebDriverWait(self.driver, 10).until(
+                                    EC.presence_of_element_located((AppiumBy.XPATH, "//android.widget.TextView[@text='PNR Status']"))
+                                )
+                                train_status_button = self.driver.find_element(AppiumBy.XPATH, "//android.widget.TextView[@text='PNR Status']")
+                                train_status_button.click()
 
-                            # Locate the PNR input field and enter a valid 10-digit PNR number
-                            pnr_input_field = self.driver.find_element(AppiumBy.XPATH,
-                                                                       "//android.widget.EditText[@text='Enter your 10 digit PNR']")
-                            pnr_input_field.send_keys("1234567890")
-
-                            # Locate the "Search" button and tap on it
-                            search_button = self.driver.find_element(AppiumBy.XPATH, "//android.widget.Button[contains(@text, 'Search')]")
-                            search_button.click()
-
-                        def test_case_3(self):
-                            """
-                            Verify the application handles invalid PNR numbers.
-                            Steps:
-                                1. Enter an invalid or less than 10-digit PNR number.
-                            Expected Outcome: The search button should remain disabled.
-                            """
-                            # Navigate to the PNR Status screen (same steps as Test Case 1)
-                            self.test_case_1()
-
-                            # Locate the PNR input field and enter an invalid PNR number (less than 10 digits)
-                            pnr_input_field = self.driver.find_element(AppiumBy.XPATH,
-                                                                       "//android.widget.EditText[@text='Enter your 10 digit PNR']")
-                            pnr_input_field.send_keys("12345")
-
-                            # Locate the "Search" button and tap on it
-                            search_button = self.driver.find_element(AppiumBy.XPATH, "//android.widget.Button[contains(@text, 'Search')]")
-                            # search_button.click()
-                            # Verify that the button is disabled
-                            assert not search_button.is_enabled(), "The search button should be disabled for invalid PNR input"
+                                WebDriverWait(self.driver, 10).until(
+                                    EC.presence_of_element_located((AppiumBy.XPATH, "//android.widget.TextView[@text='Running Status']"))
+                                )
+                                assert self.driver.find_element(AppiumBy.XPATH, "//android.widget.TextView[@text='Running Status']").is_displayed()
+                                assert self.driver.find_element(AppiumBy.XPATH, "//android.widget.EditText[@text='Enter your 10 digit PNR']").is_displayed()
+                                # assert self.driver.find_element(AppiumBy.XPATH, "//android.widget.Button[@text='Search']").is_displayed()
+                                assert self.driver.find_element(AppiumBy.ID, "com.ixigo.train.ixitrain:id/btn_search").is_displayed()
+                                logging.info("Test Case 2 passed: PNR status screen displays correct elements")
+                            except Exception as e:
+                                logging.error(f"Test Case 2 failed: {{e}}")
+                                raise
 
                     This is a collage of frames from a video that I want to upload.'''
                 },
