@@ -4,7 +4,7 @@ import time
 
 base_url = "http://127.0.0.1:8000"
 
-video_file_path = "/Users/krish/Downloads/QAutomator_Android.mov"
+video_file_path = "/Users/krish/Downloads/sample_video_pnr_status.mp4"
 
 start_time = time.time()
 with open(video_file_path, "rb") as file:
