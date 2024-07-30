@@ -94,7 +94,38 @@ async def capture_frames_at_intervals(video_file, interval_ms=250):
         if not os.path.exists(output_frames_dir):
             os.makedirs(output_frames_dir)
 
-        for ms in range(0, duration_ms + 1, interval_ms):  # Include the last frame
+        # Capture the first frame
+        video.set(cv2.CAP_PROP_POS_MSEC, 0)
+        success, frame = video.read()
+        if success:
+            frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            frames.append(frame)
+            frame_count += 1
+
+            logger.info("Frame at 0 ms added")
+
+            previous_frame_gray = frame_gray
+
+            # Save the first frame
+            frame_path = os.path.join(output_frames_dir, 'frame_0.jpg')
+            plt.figure()
+            plt.imshow(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+            plt.title('Frame at 0 ms')
+            plt.axis('off')
+            plt.savefig(frame_path)
+            plt.close()
+
+            all_frames_path = os.path.join(all_frames_dir, 'frame_0.jpg')
+            plt.figure()
+            plt.imshow(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+            plt.title('Frame at 0 ms')
+            plt.axis('off')
+            plt.savefig(all_frames_path)
+            plt.close()
+        else:
+            logger.warning("Warning: First frame could not be read.")
+
+        for ms in range(interval_ms, duration_ms + 1, interval_ms):  # Start from interval_ms
             video.set(cv2.CAP_PROP_POS_MSEC, ms)  # Set the position of the video in milliseconds
             success, frame = video.read()
             if success:
