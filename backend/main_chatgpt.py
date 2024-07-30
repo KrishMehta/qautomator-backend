@@ -424,9 +424,9 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
                             """
                             # Wait for the Home screen to load and locate the "PNR Status" button
                             WebDriverWait(self.driver, 10).until(
-                                EC.presence_of_element_located((By.XPATH, "//android.widget.TextView[@text='PNR Status']"))
+                                EC.presence_of_element_located((AppiumBy.XPATH, "//android.widget.TextView[@text='PNR Status']"))
                             )
-                            pnr_status_button = self.driver.find_element(By.XPATH, "//android.widget.TextView[@text='PNR Status']")
+                            pnr_status_button = self.driver.find_element(AppiumBy.XPATH, "//android.widget.TextView[@text='PNR Status']")
                             self.assertTrue(pnr_status_button.is_displayed())
 
                             # Tap on the "PNR Status" button
@@ -434,9 +434,9 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
 
                             # Wait for the PNR Status screen to load
                             WebDriverWait(self.driver, 10).until(
-                                EC.presence_of_element_located((By.XPATH, "//android.widget.EditText[@text='Enter your 10 digit PNR']"))
+                                EC.presence_of_element_located((AppiumBy.XPATH, "//android.widget.EditText[@text='Enter your 10 digit PNR']"))
                             )
-                            self.assertTrue(self.driver.find_element(By.XPATH,
+                            self.assertTrue(self.driver.find_element(AppiumBy.XPATH,
                                                                      "//android.widget.EditText[@text='Enter your 10 digit PNR']").is_displayed())
 
                         def test_case_2(self):
@@ -452,12 +452,12 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
                             self.test_case_1()
 
                             # Locate the PNR input field and enter a valid 10-digit PNR number
-                            pnr_input_field = self.driver.find_element(By.XPATH,
+                            pnr_input_field = self.driver.find_element(AppiumBy.XPATH,
                                                                        "//android.widget.EditText[@text='Enter your 10 digit PNR']")
                             pnr_input_field.send_keys("1234567890")
 
                             # Locate the "Search" button and tap on it
-                            search_button = self.driver.find_element(By.XPATH, "//android.widget.Button[contains(@text, 'Search')]")
+                            search_button = self.driver.find_element(AppiumBy.XPATH, "//android.widget.Button[contains(@text, 'Search')]")
                             search_button.click()
 
                         def test_case_3(self):
@@ -471,12 +471,12 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
                             self.test_case_1()
 
                             # Locate the PNR input field and enter an invalid PNR number (less than 10 digits)
-                            pnr_input_field = self.driver.find_element(By.XPATH,
+                            pnr_input_field = self.driver.find_element(AppiumBy.XPATH,
                                                                        "//android.widget.EditText[@text='Enter your 10 digit PNR']")
                             pnr_input_field.send_keys("12345")
 
                             # Locate the "Search" button and tap on it
-                            search_button = self.driver.find_element(By.XPATH, "//android.widget.Button[contains(@text, 'Search')]")
+                            search_button = self.driver.find_element(AppiumBy.XPATH, "//android.widget.Button[contains(@text, 'Search')]")
                             # search_button.click()
                             # Verify that the button is disabled
                             assert not search_button.is_enabled(), "The search button should be disabled for invalid PNR input"
