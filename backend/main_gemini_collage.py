@@ -193,8 +193,8 @@ async def generate_func_flow_gemini_collage(file: UploadFile = File(...)):
 
 @app.post("/generate_test_cases_gemini_collage/")
 async def generate_test_cases_gemini_collage(file: UploadFile = File(...),
-                                            application_flow: str = Form(...),
-                                            type_of_flow: str = Form(...)):
+                                             application_flow: str = Form(...),
+                                             type_of_flow: str = Form(...)):
     print("generating TCs")
     global base64_collage
     if base64_collage is None:
@@ -268,10 +268,10 @@ async def generate_test_cases_gemini_collage(file: UploadFile = File(...),
 
 @app.post("/generate_test_cases_code_gemini_collage")
 async def generate_code_for_test_cases_gemini_collage(file: UploadFile = File(...),
-                                                     application_flow: str = Form(...),
-                                                     type_of_flow: str = Form(...),
-                                                     test_cases_list: str = Form(...),
-                                                     os_type: str = Form(...)):
+                                                      application_flow: str = Form(...),
+                                                      type_of_flow: str = Form(...),
+                                                      test_cases_list: str = Form(...),
+                                                      os_type: str = Form(...)):
     print("TC list", test_cases_list)
     print("OS", os_type)
 

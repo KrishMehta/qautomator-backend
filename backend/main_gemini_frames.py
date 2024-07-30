@@ -188,8 +188,8 @@ async def generate_func_flow_gemini_frames(file: UploadFile = File(...)):
 
 @app.post("/generate_test_cases_gemini_frames/")
 async def generate_test_cases_gemini_frames(file: UploadFile = File(...),
-                                             application_flow: str = Form(...),
-                                             type_of_flow: str = Form(...)):
+                                            application_flow: str = Form(...),
+                                            type_of_flow: str = Form(...)):
     print("generating TCs")
     global frames, files
 
@@ -263,10 +263,10 @@ async def generate_test_cases_gemini_frames(file: UploadFile = File(...),
 
 @app.post("/generate_test_cases_code_gemini_frames")
 async def generate_code_for_test_cases_gemini_frames(file: UploadFile = File(...),
-                                                      application_flow: str = Form(...),
-                                                      type_of_flow: str = Form(...),
-                                                      test_cases_list: str = Form(...),
-                                                      os_type: str = Form(...)):
+                                                     application_flow: str = Form(...),
+                                                     type_of_flow: str = Form(...),
+                                                     test_cases_list: str = Form(...),
+                                                     os_type: str = Form(...)):
     print("TC list", test_cases_list)
     print("OS", os_type)
 
