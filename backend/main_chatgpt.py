@@ -29,7 +29,7 @@ app.add_middleware(
 openai_key = os.getenv('openai_key')
 if not openai_key:
     raise ValueError("No OpenAI API key found in environment variable 'openai_key'")
-client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY", openai_key))
+client = OpenAI(api_key=openai_key)
 
 all_screens = {
     "home_screen": "The main screen allows users to book trains, flights, buses, and hotels, with search fields for train routes, date selection, and options for checking running status and PNR status. Key UI elements include tabs for different transportation modes, search functionality, and quick access to services like seat availability and food orders.",
