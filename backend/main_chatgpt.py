@@ -887,22 +887,3 @@ async def generate_test_cases_code_for_backend(request: BackendTestingRequest):
     logger.info(f"Total cost: ${total_cost:.6f}")
 
     return {"result": result.choices[0].message.content}
-
-
-async def parse_video_to_frame(file):
-    with tempfile.NamedTemporaryFile(delete=False) as tmp:
-        tmp.write(await file.read())
-        tmp_path = tmp.name
-
-    # Process video and extract frames
-    video = cv2.VideoCapture(tmp_path)
-    base64_frames = []
-    while video.isOpened():
-        success, frame = video.read()
-        if not success:
-            break
-        _, buffer = cv2.imencode(".jpg", frame)
-        base64_frames.append(base64.b64encode(buffer).decode("utf-8"))
-    video.release()
-    os.remove(tmp_path)
-    return base64_frames
