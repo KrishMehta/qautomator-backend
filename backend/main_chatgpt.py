@@ -660,8 +660,3 @@ class BackendTestingRequest(BaseModel):
     success_response: str
     error_response: str
     test_cases_list: list
-
-
-def worker(args):
-    func, original_image, test_screen = args
-    return func(original_image, test_screen)
