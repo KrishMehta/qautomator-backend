@@ -444,38 +444,38 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
 
                         Example Appium Code:
 
-                        def test_case_1(self):
+                        def test_case_1():
                             """
                             Verify that the app launches and displays the home screen with app icons.
                             """
                             try:
-                                WebDriverWait(self.driver, 10).until(
+                                WebDriverWait(driver, 10).until(
                                     EC.presence_of_element_located((AppiumBy.XPATH, "//android.widget.TextView[@text='Trains']"))
                                 )
-                                assert self.driver.find_element(AppiumBy.XPATH, "//android.widget.TextView[@text='Trains']").is_displayed()
+                                assert driver.find_element(AppiumBy.XPATH, "//android.widget.TextView[@text='Trains']").is_displayed()
                                 logging.info("Test Case 1 passed: Home screen loaded successfully")
                             except Exception as e:
                                 logging.error(f"Test Case 1 failed: {{e}}")
                                 raise
 
-                        def test_case_2(self):
+                        def test_case_2():
                             """
                             Verify that the PNR status screen displays the correct title and input field.
                             """
                             try:
-                                WebDriverWait(self.driver, 10).until(
+                                WebDriverWait(driver, 10).until(
                                     EC.presence_of_element_located((AppiumBy.XPATH, "//android.widget.TextView[@text='PNR Status']"))
                                 )
-                                train_status_button = self.driver.find_element(AppiumBy.XPATH, "//android.widget.TextView[@text='PNR Status']")
+                                train_status_button = driver.find_element(AppiumBy.XPATH, "//android.widget.TextView[@text='PNR Status']")
                                 train_status_button.click()
 
-                                WebDriverWait(self.driver, 10).until(
+                                WebDriverWait(driver, 10).until(
                                     EC.presence_of_element_located((AppiumBy.XPATH, "//android.widget.TextView[@text='Running Status']"))
                                 )
-                                assert self.driver.find_element(AppiumBy.XPATH, "//android.widget.TextView[@text='Running Status']").is_displayed()
-                                assert self.driver.find_element(AppiumBy.XPATH, "//android.widget.EditText[@text='Enter your 10 digit PNR']").is_displayed()
-                                # assert self.driver.find_element(AppiumBy.XPATH, "//android.widget.Button[@text='Search']").is_displayed()
-                                assert self.driver.find_element(AppiumBy.ID, "com.ixigo.train.ixitrain:id/btn_search").is_displayed()
+                                assert driver.find_element(AppiumBy.XPATH, "//android.widget.TextView[@text='Running Status']").is_displayed()
+                                assert driver.find_element(AppiumBy.XPATH, "//android.widget.EditText[@text='Enter your 10 digit PNR']").is_displayed()
+                                # assert driver.find_element(AppiumBy.XPATH, "//android.widget.Button[@text='Search']").is_displayed()
+                                assert driver.find_element(AppiumBy.ID, "com.ixigo.train.ixitrain:id/btn_search").is_displayed()
                                 logging.info("Test Case 2 passed: PNR status screen displays correct elements")
                             except Exception as e:
                                 logging.error(f"Test Case 2 failed: {{e}}")
