@@ -646,9 +646,3 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
     logger.info(f"Total cost: ${total_cost:.6f}")
 
     return {"result": result.choices[0].message.content}
-
-
-class VisualTestingRequest(BaseModel):
-    testScreen: str
-    screen_type: str
-    osType: str
