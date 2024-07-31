@@ -665,31 +665,3 @@ class BackendTestingRequest(BaseModel):
 def worker(args):
     func, original_image, test_screen = args
     return func(original_image, test_screen)
-
-
-@app.post("/visual_testing")
-async def visual_testing(request: VisualTestingRequest):
-    logger.info("visual testing started")
-    original_image = visual_testing_images.get(request.osType).get(request.screen_type)
-
-    # Define the functions and their arguments
-    tasks = [
-        (process_color_in_images, original_image, request.testScreen),
-        (process_layout_in_images, original_image, request.testScreen),
-        (process_text_in_images, original_image, request.testScreen)
-    ]
-
-    # Run the functions in parallel using multiprocessing
-    with multiprocessing.Pool(processes=3) as pool:
-        results = pool.map(worker, tasks)
-
-    # Collect the results
-    color_diff, layout_diff, text_diff = results
-
-    visual_testing_result = visual_analyze(text_diff, layout_diff, color_diff)
-    # print(visual_testing_result)
-    return {"result": {
-        "visual_testing": visual_testing_result,
-        "original_Img": original_image,
-        "testing_Img": request.testScreen
-    }}
