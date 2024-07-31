@@ -652,11 +652,3 @@ class VisualTestingRequest(BaseModel):
     testScreen: str
     screen_type: str
     osType: str
-
-
-class BackendTestingRequest(BaseModel):
-    curl: str
-    functionality: str
-    success_response: str
-    error_response: str
-    test_cases_list: list
