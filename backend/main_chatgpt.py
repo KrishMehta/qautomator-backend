@@ -2,7 +2,6 @@ import base64
 import cv2
 import json
 import logging
-import multiprocessing
 import numpy as np
 import os
 import tempfile
@@ -11,15 +10,7 @@ from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from skimage.metrics import structural_similarity as ssim
 from openai import OpenAI
-from pydantic import BaseModel
 import matplotlib.pyplot as plt
-
-from qautomate.helpers.visual_testing_helper import (
-    process_color_in_images,
-    process_layout_in_images,
-    process_text_in_images,
-    visual_analyze
-)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -413,9 +404,7 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
 
     logger.info("impacted_screens: %s", impacted_screens)
     screen_mapper = screen_mapper_android if os_type == "android" else screen_mapper_ios
-    # print("screen_mapper", screen_mapper)
     screen_data = {screen: screen_mapper.get(screen, {}) for screen in impacted_screens}
-    # print("Screen Data:", screen_data)
 
     prompt_messages_for_android = [
         {
