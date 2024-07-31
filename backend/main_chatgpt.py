@@ -1,16 +1,16 @@
 import base64
-import cv2
 import json
 import logging
-import numpy as np
 import os
 import tempfile
 
+import cv2
+import matplotlib.pyplot as plt
+import numpy as np
 from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from skimage.metrics import structural_similarity as ssim
 from openai import OpenAI
-import matplotlib.pyplot as plt
+from skimage.metrics import structural_similarity as ssim
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
