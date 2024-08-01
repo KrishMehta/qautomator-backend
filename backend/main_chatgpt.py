@@ -43,9 +43,6 @@ with open('qautomate/screen_ui_elements_map.json', 'r') as f:
 with open('qautomate/screen_ui_elements_map_ios.json', 'r') as f:
     screen_mapper_ios = json.load(f)
 
-with open('qautomate/screens_for_visual_testing.json', 'r') as f:
-    visual_testing_images = json.load(f)
-
 input_cost_per_million = 0.15  # 15 cents per 1M input tokens
 output_cost_per_million = 0.60  # 60 cents per 1M output tokens
 
