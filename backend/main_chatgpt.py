@@ -49,7 +49,7 @@ with open('qautomate/screen_ui_elements_map_ios.json', 'r') as f:
 base64_collage = None
 
 
-async def capture_frames_at_intervals(video_file, interval_ms=250):
+async def capture_frames_at_intervals(video_file, interval_ms=250, max_frames=25):
     global base64_collage
     try:
         with tempfile.NamedTemporaryFile(delete=False) as tmp:
@@ -113,6 +113,8 @@ async def capture_frames_at_intervals(video_file, interval_ms=250):
         else:
             logger.warning("Warning: First frame could not be read.")
 
+        ssim_differences = []
+
         for ms in range(interval_ms, duration_ms + 1, interval_ms):  # Start from interval_ms
             video.set(cv2.CAP_PROP_POS_MSEC, ms)  # Set the position of the video in milliseconds
             success, frame = video.read()
@@ -122,21 +124,7 @@ async def capture_frames_at_intervals(video_file, interval_ms=250):
                 if previous_frame_gray is not None:
                     similarity, _ = ssim(previous_frame_gray, frame_gray, full=True)
                     difference = 1 - similarity  # SSIM returns similarity not difference
-
-                    if difference > 0.10:  # Check for greater than 10% difference
-                        frames.append(frame)
-                        frame_count += 1
-                        logger.info(f"Frame at {ms} ms added with SSIM difference ratio: {difference:.2%}")
-                        # Save the selected frame
-                        frame_path = os.path.join(output_frames_dir, f'frame_{ms}.jpg')
-                        plt.figure()
-                        plt.imshow(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-                        plt.title(f'Frame at {ms} ms')
-                        plt.axis('off')
-                        plt.savefig(frame_path)
-                        plt.close()
-                    else:
-                        logger.info(f"Skipping frame at {ms} ms due to low SSIM difference ratio: {difference:.2%}")
+                    ssim_differences.append(difference)
 
                 previous_frame_gray = frame_gray
 
@@ -148,6 +136,50 @@ async def capture_frames_at_intervals(video_file, interval_ms=250):
                 plt.axis('off')
                 plt.savefig(all_frames_path)
                 plt.close()
+            else:
+                logger.warning(f"Warning: Frame at {ms} ms could not be read.")
+
+        # Calculate dynamic SSIM threshold based on variance in differences
+        if ssim_differences:
+            mean_diff = np.mean(ssim_differences)
+            std_diff = np.std(ssim_differences)
+            threshold = mean_diff + std_diff
+        else:
+            threshold = 0.10  # Default threshold if no SSIM differences calculated
+
+        logger.info(f"Dynamic SSIM threshold set to: {threshold:.2%}")
+
+        previous_frame_gray = None
+
+        for ms in range(interval_ms, duration_ms + 1, interval_ms):
+            video.set(cv2.CAP_PROP_POS_MSEC, ms)
+            success, frame = video.read()
+            if success:
+                frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+                if previous_frame_gray is not None:
+                    similarity, _ = ssim(previous_frame_gray, frame_gray, full=True)
+                    difference = 1 - similarity
+
+                    if difference > threshold:
+                        frames.append(frame)
+                        frame_count += 1
+                        logger.info(f"Frame at {ms} ms added with SSIM difference ratio: {difference:.2%}")
+                        # Save the selected frame
+                        frame_path = os.path.join(output_frames_dir, f'frame_{ms}.jpg')
+                        plt.figure()
+                        plt.imshow(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+                        plt.title(f'Frame at {ms} ms')
+                        plt.axis('off')
+                        plt.savefig(frame_path)
+                        plt.close()
+
+                        if frame_count >= max_frames:
+                            break
+                    else:
+                        logger.info(f"Skipping frame at {ms} ms due to low SSIM difference ratio: {difference:.2%}")
+
+                previous_frame_gray = frame_gray
             else:
                 logger.warning(f"Warning: Frame at {ms} ms could not be read.")
 
@@ -189,11 +221,9 @@ async def capture_frames_at_intervals(video_file, interval_ms=250):
         plt.close()
 
         return base64_collage
-
     except Exception as e:
-        logger.error(f"An error occurred: {e}")
-    finally:
-        video.release()
+        logger.error(f"An error occurred: {str(e)}")
+        raise
 
 
 @app.post("/func_flow/")
