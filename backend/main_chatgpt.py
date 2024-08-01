@@ -31,6 +31,9 @@ if not openai_key:
     raise ValueError("No OpenAI API key found in environment variable 'openai_key'")
 client = OpenAI(api_key=openai_key)
 
+input_cost_per_million = 0.15  # 15 cents per 1M input tokens
+output_cost_per_million = 0.60  # 60 cents per 1M output tokens
+
 all_screens = {
     "home_screen": "This screen allows users to book trains, flights, buses, and hotels, with search fields for train routes, date selection, and options for checking running status and PNR status. Key UI elements include tabs for different transportation modes, search functionality, and quick access to services like seat availability and food orders.",
     "pnr_status_screen": "This screen allows users to check their train PNR status by entering their 10-digit PNR number. It also provides quick access to features like coach and seat information, platform locator, refund calculator, and ixigo AU card services.",
@@ -42,9 +45,6 @@ with open('qautomate/screen_ui_elements_map.json', 'r') as f:
 
 with open('qautomate/screen_ui_elements_map_ios.json', 'r') as f:
     screen_mapper_ios = json.load(f)
-
-input_cost_per_million = 0.15  # 15 cents per 1M input tokens
-output_cost_per_million = 0.60  # 60 cents per 1M output tokens
 
 base64_collage = None
 
