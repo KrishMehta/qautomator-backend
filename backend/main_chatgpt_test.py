@@ -132,10 +132,11 @@ print("\n")
 
 extracted_test_cases = extract_test_cases(test_cases_code_result)
 print(f"Extracted test cases: {extracted_test_cases}")
-# try:
-#     setup()
-#     exec(extracted_test_cases)
-# except Exception as e:
-#     logging.error(f"Error during test execution: {e}")
-# finally:
-#     teardown()
+
+try:
+    setup()
+    exec(extracted_test_cases)
+except Exception as e:
+    logging.error(f"Error during test execution: {e}")
+finally:
+    teardown()
