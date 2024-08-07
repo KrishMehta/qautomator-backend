@@ -1,11 +1,63 @@
 import json
+import logging
 import re
 import requests
 import time
 
+from appium import webdriver
+from appium.options.android import UiAutomator2Options
+from appium.webdriver.common.appiumby import AppiumBy
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+logging.basicConfig(level=logging.INFO)
+
 base_url = "http://127.0.0.1:8000"
 
 video_file_path = "/Users/krish/Downloads/sample_video_pnr_status.mp4"
+
+driver = None
+
+
+def setup():
+    global driver
+    options = UiAutomator2Options()
+    options.platform_name = 'Android'
+    options.device_name = 'emulator-5556'
+    options.app_package = 'com.ixigo.train.ixitrain'
+    options.app_activity = 'com.ixigo.train.ixitrain.TrainActivity'
+    options.no_reset = True
+
+    try:
+        driver = webdriver.Remote('http://localhost:4723/wd/hub', options=options)
+
+        # Navigate to the home screen
+        driver.press_keycode(3)
+
+        # Open the app drawer
+        driver.swipe(start_x=500, start_y=1500, end_x=500, end_y=500, duration=800)
+        WebDriverWait(driver, 30).until(
+            EC.presence_of_element_located((AppiumBy.XPATH, "//android.widget.TextView[@text='ixigo trains']"))
+        )
+
+        # Click on the ixigo app icon
+        ixigo_icon = driver.find_element(AppiumBy.XPATH, "//android.widget.TextView[@text='ixigo trains']")
+        ixigo_icon.click()
+
+        # Wait until the app is launched
+        WebDriverWait(driver, 30).until(
+            EC.presence_of_element_located((AppiumBy.XPATH, "//android.widget.TextView[@text='Trains']"))
+        )
+
+    except Exception as e:
+        logging.error(f"Error setting up Appium driver: {e}")
+        raise
+
+
+def teardown():
+    global driver
+    if driver:
+        driver.quit()
 
 
 def extract_test_cases(code_snippet):
@@ -66,9 +118,18 @@ with open(video_file_path, "rb") as file:
     )
     response.raise_for_status()
     test_cases_code_result = response.json()["result"]
-    extracted_test_cases = extract_test_cases(test_cases_code_result)
 end_time = time.time()
 step_3_duration = end_time - start_time
 print("Step 3 Result:", test_cases_code_result)
 print(f"Step 3 Duration: {step_3_duration:.2f} seconds")
 print("\n")
+
+extracted_test_cases = extract_test_cases(test_cases_code_result)
+print(f"Extracted test cases: {extracted_test_cases}")
+# try:
+#     setup()
+#     exec(extracted_test_cases)
+# except Exception as e:
+#     logging.error(f"Error during test execution: {e}")
+# finally:
+#     teardown()
