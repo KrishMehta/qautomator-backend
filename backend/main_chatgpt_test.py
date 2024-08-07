@@ -62,10 +62,10 @@ def teardown():
 
 def extract_test_cases(code_snippet):
     """
-    Extract test case functions from the provided code snippet.
+    Extract test case functions from the provided code snippet and append their calls.
     
     :param code_snippet: The entire code snippet as a string.
-    :return: A string containing all test case functions.
+    :return: A string containing all test case functions and their calls.
     """
     # Regular expression to match class methods starting with 'test_case_' and include all indented lines
     test_case_pattern = re.compile(r'(def test_case_\d+\(\):\n(?: {4}.*\n)*)', re.MULTILINE)
@@ -75,6 +75,12 @@ def extract_test_cases(code_snippet):
 
     # Join all matches with a newline to form the output string
     result = "\n".join(matches)
+
+    # Extract test case function names
+    test_case_calls = [re.search(r'def (test_case_\d+)\(\):', match).group(1) for match in matches]
+
+    # Append the test case calls to the result
+    result += "\n\n" + "\n".join(f"{test_case_call}()" for test_case_call in test_case_calls)
 
     return result
 
