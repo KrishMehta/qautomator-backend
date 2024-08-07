@@ -461,9 +461,7 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
                         Example Appium Code:
 
                         def test_case_1():
-                            """
-                            Verify that the app launches and displays the home screen with app icons.
-                            """
+                            # Verify that the app launches and displays the home screen with app icons.
                             try:
                                 WebDriverWait(driver, 10).until(
                                     EC.presence_of_element_located((AppiumBy.XPATH, "//android.widget.TextView[@text='Trains']"))
@@ -475,9 +473,7 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
                                 raise
 
                         def test_case_2():
-                            """
-                            Verify that the PNR status screen displays the correct title and input field.
-                            """
+                            # Verify that the PNR status screen displays the correct title and input field.
                             try:
                                 WebDriverWait(driver, 10).until(
                                     EC.presence_of_element_located((AppiumBy.XPATH, "//android.widget.TextView[@text='PNR Status']"))
@@ -497,6 +493,10 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
                                 logging.error(f"Test Case 2 failed: {{e}}")
                                 raise
 
+                    Notes: 
+                    - Please use # instead of """ for comments in the code.
+                    - Please ensure any test case with a try block has a corresponding except block to handle exceptions.         
+                    
                     This is a collage of frames from a video that I want to upload.'''
                 },
                 {
