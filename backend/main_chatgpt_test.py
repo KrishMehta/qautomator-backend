@@ -1,7 +1,7 @@
-import requests
 import json
-import time
 import re
+import requests
+import time
 
 base_url = "http://127.0.0.1:8000"
 
