@@ -2,14 +2,14 @@ import base64
 import json
 import logging
 import os
+import shutil
 import tempfile
 import uuid
 
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
-import shutil
-from fastapi import FastAPI, File, Form, UploadFile, HTTPException
+from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from openai import OpenAI
 from skimage.metrics import structural_similarity as ssim
