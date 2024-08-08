@@ -842,20 +842,20 @@ async def execute_test(test_id: str):
             try:
                 print(test_case)
                 exec(test_case)
-                test_case_description = test_case.split('"""')[1] if '"""' in test_case else ""
+                test_case_description = test_case.splitlines()[1].strip().lstrip("# ") if len(test_case.splitlines()) > 1 else ""
                 results.append({
                     "testId": test_id,
                     "testCaseId": test_case_id,
-                    "testCaseDescription": test_case_description.strip(),
+                    "testCaseDescription": test_case_description,
                     "status": "PASSED"
                 })
             except Exception as e:
                 logging.error(f"{test_case_id} failed: {e}")
-                test_case_description = test_case.split('"""')[1] if '"""' in test_case else ""
+                test_case_description = test_case.splitlines()[1].strip().lstrip("# ") if len(test_case.splitlines()) > 1 else ""
                 results.append({
                     "testId": test_id,
                     "testCaseId": test_case_id,
-                    "testCaseDescription": test_case_description.strip(),
+                    "testCaseDescription": test_case_description,
                     "status": "FAILED"
                 })
     except Exception as e:
