@@ -3,10 +3,12 @@ import json
 import logging
 import os
 import tempfile
+import uuid
 
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
+import shutil
 from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from openai import OpenAI
@@ -47,6 +49,12 @@ with open('qautomate/screen_ui_elements_map_ios.json', 'r') as f:
     screen_mapper_ios = json.load(f)
 
 base64_collage = None
+
+database = {
+    "tests": {},
+    "test_cases": {},
+    "test_case_code": {}
+}
 
 
 async def capture_frames_at_intervals(video_file, interval_ms=250, max_frames=25):
@@ -662,3 +670,26 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
     logger.info(f"Total cost: ${total_cost:.6f}")
 
     return {"result": result.choices[0].message.content}
+
+
+@app.post("/test/")
+async def create_test(product: str, name: str, video: UploadFile = File(...)):
+    test_id = str(uuid.uuid4())
+    video_path = f"./videos/{test_id}.mp4"
+    
+    with open(video_path, "wb") as buffer:
+        shutil.copyfileobj(video.file, buffer)
+    
+    database["tests"][test_id] = {
+        "product": product,
+        "name": name,
+        "video_path": video_path,
+    }
+    
+    return {
+        "status": True,
+        "data": {
+            "testId": test_id,
+        }
+    }
+
