@@ -671,7 +671,7 @@ async def generate_code_for_test_cases(video_path: str,
 
 
 @app.post("/test/")
-async def create_test(product: str, name: str, video: UploadFile = File(...)):
+async def create_test(video: UploadFile = File(...)):
     test_id = str(uuid.uuid4())
     video_path = f"./videos/{test_id}.mp4"
 
@@ -679,8 +679,6 @@ async def create_test(product: str, name: str, video: UploadFile = File(...)):
         shutil.copyfileobj(video.file, buffer)
 
     database["tests"][test_id] = {
-        "product": product,
-        "name": name,
         "video_path": video_path,
     }
 
