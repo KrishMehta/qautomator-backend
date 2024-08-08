@@ -696,7 +696,7 @@ async def create_test(product: str, name: str, video: UploadFile = File(...)):
 
 
 @app.post("/func_flow/{test_id}")
-async def generate_func_flow(test_id: str):
+async def create_func_flow(test_id: str):
     if test_id not in database["tests"]:
         raise HTTPException(status_code=404, detail="Test not found")
 
@@ -716,12 +716,12 @@ async def generate_func_flow(test_id: str):
 
 
 @app.post("/test_cases/{test_id}")
-async def generate_test_cases(test_id: str):
+async def create_test_cases(test_id: str):
     if test_id not in database["tests"]:
         raise HTTPException(status_code=404, detail="Test not found")
 
     if test_id not in database["func_flows"]:
-        await generate_func_flow(test_id)
+        await create_func_flow(test_id)
 
     test = database["tests"][test_id]
     video_path = test["video_path"]
@@ -744,15 +744,15 @@ async def generate_test_cases(test_id: str):
 
 
 @app.post("/test_cases/code/{test_id}")
-async def generate_test_cases_code(test_id: str):
+async def create_test_cases_code(test_id: str):
     if test_id not in database["tests"]:
         raise HTTPException(status_code=404, detail="Test not found")
 
     if test_id not in database["func_flows"]:
-        await generate_func_flow(test_id)
+        await create_func_flow(test_id)
 
     if test_id not in database["test_cases"]:
-        await generate_test_cases(test_id)
+        await create_test_cases(test_id)
 
     test = database["tests"][test_id]
     video_path = test["video_path"]
