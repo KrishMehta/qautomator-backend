@@ -85,51 +85,63 @@ def extract_test_cases(code_snippet):
     return result
 
 
+# Step 1: Upload video and get test ID
 start_time = time.time()
 with open(video_file_path, "rb") as file:
-    response = requests.post(f"{base_url}/func_flow/", files={"file": file})
-    response.raise_for_status()
-    func_flow_result = response.json()["result"]
+    response = requests.post(
+        f"{base_url}/test/",
+        files={"video": file},
+        data={"product": "TRAINS", "name": "PNR_TESTING"}
+    )
+response.raise_for_status()
+test_id = response.json()["data"]["testId"]
 end_time = time.time()
 step_1_duration = end_time - start_time
-print("Step 1 Result:", func_flow_result)
+print("Step 1 Result: Test ID", test_id)
 print(f"Step 1 Duration: {step_1_duration:.2f} seconds")
 print("\n")
 
+# Step 2: Generate functional flow
 start_time = time.time()
-with open(video_file_path, "rb") as file:
-    response = requests.post(
-        f"{base_url}/generate_test_cases/",
-        files={"file": file},
-        data={"application_flow": func_flow_result}
-    )
-    response.raise_for_status()
-    test_cases_result = response.json()["result"]
+response = requests.post(f"{base_url}/func_flow/{test_id}")
+response.raise_for_status()
+func_flow_result = response.json()["data"]["funcFlow"]
 end_time = time.time()
 step_2_duration = end_time - start_time
-print("Step 2 Result:", test_cases_result)
+print("Step 2 Result:", func_flow_result)
 print(f"Step 2 Duration: {step_2_duration:.2f} seconds")
 print("\n")
 
+# Step 3: Generate test cases
 start_time = time.time()
-with open(video_file_path, "rb") as file:
-    response = requests.post(
-        f"{base_url}/generate_test_cases_code",
-        files={"file": file},
-        data={
-            "application_flow": func_flow_result,
-            "test_cases_list": json.dumps(test_cases_result),
-            "os_type": "android"
-        }
-    )
-    response.raise_for_status()
-    test_cases_code_result = response.json()["result"]
+response = requests.post(f"{base_url}/test_cases/{test_id}")
+response.raise_for_status()
+test_cases_result = response.json()["data"]["testCases"]
 end_time = time.time()
 step_3_duration = end_time - start_time
-print("Step 3 Result:", test_cases_code_result)
+print("Step 3 Result:", test_cases_result)
 print(f"Step 3 Duration: {step_3_duration:.2f} seconds")
 print("\n")
 
+# Step 4: Generate test case code
+start_time = time.time()
+response = requests.post(
+    f"{base_url}/test_cases/code/{test_id}",
+    data={
+        "application_flow": func_flow_result,
+        "test_cases_list": json.dumps(test_cases_result),
+        "os_type": "android"
+    }
+)
+response.raise_for_status()
+test_cases_code_result = response.json()["data"]["testCases"]
+end_time = time.time()
+step_4_duration = end_time - start_time
+print("Step 4 Result:", test_cases_code_result)
+print(f"Step 4 Duration: {step_4_duration:.2f} seconds")
+print("\n")
+
+# Extract and execute test cases
 extracted_test_cases = extract_test_cases(test_cases_code_result)
 print(f"Extracted test cases: {extracted_test_cases}")
 
