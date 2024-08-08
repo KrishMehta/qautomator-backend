@@ -52,8 +52,9 @@ base64_collage = None
 
 database = {
     "tests": {},
+    "func_flows": {},
     "test_cases": {},
-    "test_case_code": {}
+    "test_cases_code": {}
 }
 
 
@@ -690,6 +691,26 @@ async def create_test(product: str, name: str, video: UploadFile = File(...)):
         "status": True,
         "data": {
             "testId": test_id,
+        }
+    }
+
+
+@app.post("/func_flow/{test_id}")
+async def generate_func_flow(test_id: str):
+    if test_id not in database["tests"]:
+        raise HTTPException(status_code=404, detail="Test not found")
+
+    test = database["tests"][test_id]
+    video_path = test["video_path"]
+
+    func_flow = await generate_func_flow(video_path)
+
+    database["func_flows"][test_id] = func_flow
+
+    return {
+        "status": True,
+        "data": {
+            "funcFlow": func_flow
         }
     }
 
