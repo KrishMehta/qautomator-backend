@@ -741,3 +741,34 @@ async def generate_test_cases(test_id: str):
             "testCases": test_cases
         }
     }
+
+
+@app.post("/test_cases/code/{test_id}")
+async def generate_test_cases_code(test_id: str):
+    if test_id not in database["tests"]:
+        raise HTTPException(status_code=404, detail="Test not found")
+
+    if test_id not in database["func_flows"]:
+        await generate_func_flow(test_id)
+
+    if test_id not in database["test_cases"]:
+        await generate_test_cases(test_id)
+
+    test = database["tests"][test_id]
+    video_path = test["video_path"]
+    func_flow = database["func_flows"][test_id]
+    test_cases = database["test_cases"][test_id]
+
+    test_cases_code = await generate_code_for_test_cases(video_path, func_flow, test_cases)
+
+    database["test_cases_code"][test_id] = test_cases_code
+
+    for code in test_cases_code:
+        code["testId"] = test_id
+
+    return {
+        "status": True,
+        "data": {
+            "testCases": test_cases_code
+        }
+    }
