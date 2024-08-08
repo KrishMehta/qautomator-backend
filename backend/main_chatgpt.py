@@ -235,7 +235,6 @@ async def capture_frames_at_intervals(video_file, interval_ms=250, max_frames=25
         raise
 
 
-@app.post("/func_flow/")
 async def generate_func_flow(file: UploadFile = File(...)):
     logger.info("inside generate_func_flow")
     global base64_collage
@@ -313,10 +312,9 @@ async def generate_func_flow(file: UploadFile = File(...)):
     logger.info(f"Output cost: ${output_cost:.6f}")
     logger.info(f"Total cost: ${total_cost:.6f}")
 
-    return {"result": result.choices[0].message.content}
+    return result.choices[0].message.content
 
 
-@app.post("/generate_test_cases/")
 async def generate_test_cases(file: UploadFile = File(...),
                               application_flow: str = Form(...)
                               ):
@@ -413,10 +411,9 @@ async def generate_test_cases(file: UploadFile = File(...),
     logger.info(f"Output cost: ${output_cost:.6f}")
     logger.info(f"Total cost: ${total_cost:.6f}")
 
-    return {"result": result.choices[0].message.content}
+    return result.choices[0].message.content
 
 
-@app.post("/generate_test_cases_code")
 async def generate_code_for_test_cases(file: UploadFile = File(...),
                                        application_flow: str = Form(...),
                                        test_cases_list: str = Form(...),
@@ -670,7 +667,7 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
     logger.info(f"Output cost: ${output_cost:.6f}")
     logger.info(f"Total cost: ${total_cost:.6f}")
 
-    return {"result": result.choices[0].message.content}
+    return result.choices[0].message.content
 
 
 @app.post("/test/")
