@@ -832,12 +832,40 @@ def extract_test_cases(code_snippet):
 async def execute_test(test_id: str):
     test_cases_code = get_test_cases_code(test_id=test_id)
     extracted_test_cases = extract_test_cases(test_cases_code)
-    print(f"Extracted test cases:\n{extracted_test_cases}")
+
+    results = []
 
     try:
         setup()
-        exec(extracted_test_cases)
+        for test_case in extracted_test_cases.split("\n\n"):
+            print(test_case)
+            test_case_id = test_case.split('(')[0].strip()
+            try:
+                exec(test_case)
+                test_case_description = test_case.split('"""')[1] if '"""' in test_case else ""
+                results.append({
+                    "testId": test_id,
+                    "testCaseId": test_case_id,
+                    "testCaseDescription": test_case_description.strip(),
+                    "status": "PASSED"
+                })
+            except Exception as e:
+                logging.error(f"{test_case_id} failed: {e}")
+                test_case_description = test_case.split('"""')[1] if '"""' in test_case else ""
+                results.append({
+                    "testId": test_id,
+                    "testCaseId": test_case_id,
+                    "testCaseDescription": test_case_description.strip(),
+                    "status": "FAILED"
+                })
     except Exception as e:
         logging.error(f"Error during test execution: {e}")
     finally:
         teardown()
+
+    return {
+        "status": True,
+        "data": {
+            "results": results
+        }
+    }
