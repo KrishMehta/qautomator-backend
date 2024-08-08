@@ -838,9 +838,9 @@ async def execute_test(test_id: str):
     try:
         setup()
         for test_case in extracted_test_cases.split("\n\n"):
-            print(test_case)
             test_case_id = test_case.split('(')[0].strip()
             try:
+                print(test_case)
                 exec(test_case)
                 test_case_description = test_case.split('"""')[1] if '"""' in test_case else ""
                 results.append({
