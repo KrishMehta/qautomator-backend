@@ -2,6 +2,7 @@ import base64
 import json
 import logging
 import os
+import re
 import shutil
 import tempfile
 import uuid
@@ -13,6 +14,12 @@ from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from openai import OpenAI
 from skimage.metrics import structural_similarity as ssim
+
+from appium import webdriver
+from appium.options.android import UiAutomator2Options
+from appium.webdriver.common.appiumby import AppiumBy
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -56,6 +63,8 @@ database = {
     "test_cases": {},
     "test_cases_code": {}
 }
+
+driver = None
 
 
 async def capture_frames_at_intervals(video_file, interval_ms=250, max_frames=25):
@@ -751,3 +760,69 @@ async def create_test_cases_code(test_id: str):
 
 def get_test_cases_code(test_id: str):
     return "Here's the Appium code to automate the testing of the specified functionality in the Android application based on the provided test cases and functional flow. Each test case includes appropriate assertions and comments.\n\n```python\nfrom appium import webdriver\nfrom appium.webdriver.common.appiumby import AppiumBy\nfrom selenium.webdriver.support.ui import WebDriverWait\nfrom selenium.webdriver.support import expected_conditions as EC\nimport logging\n\n# Initialize the Appium driver (ensure to set desired capabilities)\ndriver = webdriver.Remote('http://localhost:4723/wd/hub', desired_capabilities)\n\ndef test_case_1():\n    # Verify that the app launches and displays the home screen with app icons.\n    try:\n        WebDriverWait(driver, 10).until(\n            EC.presence_of_element_located((AppiumBy.XPATH, \"//android.widget.TextView[@text='Trains']\"))\n        )\n        assert driver.find_element(AppiumBy.XPATH, \"//android.widget.TextView[@text='Trains']\").is_displayed()\n        logging.info(\"Test Case 1 passed: Home screen loaded successfully\")\n    except Exception as e:\n        logging.error(f\"Test Case 1 failed: {e}\")\n        raise\n\ndef test_case_2():\n    # Verify that the PNR status screen displays the correct title and input field.\n    try:\n        WebDriverWait(driver, 10).until(\n            EC.presence_of_element_located((AppiumBy.XPATH, \"//android.widget.TextView[@text='Trains']\"))\n        )\n        train_status_button = driver.find_element(AppiumBy.XPATH, \"//android.widget.TextView[@text='Trains']\")\n        train_status_button.click()\n\n        WebDriverWait(driver, 10).until(\n            EC.presence_of_element_located((AppiumBy.XPATH, \"//android.widget.TextView[@text='PNR Status']\"))\n        )\n        assert driver.find_element(AppiumBy.XPATH, \"//android.widget.TextView[@text='PNR Status']\").is_displayed()\n        assert driver.find_element(AppiumBy.XPATH, \"//android.widget.EditText[@text='Enter your 10 digit PNR']\").is_displayed()\n        assert driver.find_element(AppiumBy.ID, \"com.ixigo.train.ixitrain:id/btn_search\").is_displayed()\n        logging.info(\"Test Case 2 passed: PNR status screen displays correct elements\")\n    except Exception as e:\n        logging.error(f\"Test Case 2 failed: {e}\")\n        raise\n\ndef test_case_3():\n    # Verify the input field for entering the PNR number is present and functional.\n    try:\n        WebDriverWait(driver, 10).until(\n            EC.presence_of_element_located((AppiumBy.XPATH, \"//android.widget.EditText[@text='Enter your 10 digit PNR']\"))\n        )\n        assert driver.find_element(AppiumBy.XPATH, \"//android.widget.EditText[@text='Enter your 10 digit PNR']\").is_displayed()\n        logging.info(\"Test Case 3 passed: Input field for PNR number is present\")\n    except Exception as e:\n        logging.error(f\"Test Case 3 failed: {e}\")\n        raise\n\ndef test_case_4():\n    # Verify the search button is functional when a valid PNR number is entered.\n    try:\n        pnr_input = driver.find_element(AppiumBy.XPATH, \"//android.widget.EditText[@text='Enter your 10 digit PNR']\")\n        pnr_input.send_keys(\"1234567890\")  # Example valid PNR\n        search_button = driver.find_element(AppiumBy.ID, \"com.ixigo.train.ixitrain:id/btn_search\")\n        search_button.click()\n\n        WebDriverWait(driver, 10).until(\n            EC.presence_of_element_located((AppiumBy.XPATH, \"//android.widget.TextView[contains(@text, 'Train Details')]\"))\n        )\n        assert driver.find_element(AppiumBy.XPATH, \"//android.widget.TextView[contains(@text, 'Train Details')]\").is_displayed()\n        logging.info(\"Test Case 4 passed: Valid PNR search displays train details\")\n    except Exception as e:\n        logging.error(f\"Test Case 4 failed: {e}\")\n        raise\n\ndef test_case_5():\n    # Verify the app displays an error message for an invalid PNR number.\n    try:\n        pnr_input = driver.find_element(AppiumBy.XPATH, \"//android.widget.EditText[@text='Enter your 10 digit PNR']\")\n        pnr_input.clear()\n        pnr_input.send_keys(\"123\")  # Example invalid PNR\n        search_button = driver.find_element(AppiumBy.ID, \"com.ixigo.train.ixitrain:id/btn_search\")\n        search_button.click()\n\n        WebDriverWait(driver, 10).until(\n            EC.presence_of_element_located((AppiumBy.XPATH, \"//android.widget.TextView[@text='PNR No. is not valid']\"))\n        )\n        assert driver.find_element(AppiumBy.XPATH, \"//android.widget.TextView[@text='PNR No. is not valid']\").is_displayed()\n        logging.info(\"Test Case 5 passed: Invalid PNR search displays error message\")\n    except Exception as e:\n        logging.error(f\"Test Case 5 failed: {e}\")\n        raise\n\ndef test_case_6():\n    # Verify the app processes a corrected valid PNR number.\n    try:\n        pnr_input = driver.find_element(AppiumBy.XPATH, \"//android.widget.EditText[@text='Enter your 10 digit PNR']\")\n        pnr_input.clear()\n        pnr_input.send_keys(\"1234567890\")  # Example valid PNR\n        search_button = driver.find_element(AppiumBy.ID, \"com.ixigo.train.ixitrain:id/btn_search\")\n        search_button.click()\n\n        WebDriverWait(driver, 10).until(\n            EC.presence_of_element_located((AppiumBy.XPATH, \"//android.widget.TextView[contains(@text, 'Train Details')]\"))\n        )\n        assert driver.find_element(AppiumBy.XPATH, \"//android.widget.TextView[contains(@text, 'Train Details')]\").is_displayed()\n        logging.info(\"Test Case 6 passed: Corrected valid PNR search displays train details\")\n    except Exception as e:\n        logging.error(f\"Test Case 6 failed: {e}\")\n        raise\n\ndef test_case_7():\n    # Verify additional options are displayed after viewing train details.\n    try:\n        WebDriverWait(driver, 10).until(\n            EC.presence_of_element_located((AppiumBy.XPATH, \"//android.widget.TextView[contains(@text, 'Train Details')]\"))\n        )\n        # Scroll down to see additional options\n        driver.execute_script(\"mobile: scroll\", {\"direction\": \"down\"})\n        assert driver.find_element(AppiumBy.XPATH, \"//android.widget.TextView[@text='Platform Locator']\").is_displayed()\n        assert driver.find_element(AppiumBy.XPATH, \"//android.widget.TextView[@text='Refund Calculator']\").is_displayed()\n        logging.info(\"Test Case 7 passed: Additional options are displayed\")\n    except Exception as e:\n        logging.error(f\"Test Case 7 failed: {e}\")\n        raise\n\ndef test_case_8():\n    # Verify selecting a specific train displays detailed information.\n    try:\n        specific_train = driver.find_element(AppiumBy.XPATH, \"//android.widget.TextView[contains(@text, '11072 Kamayani Exp')]\")\n        specific_train.click()\n\n        WebDriverWait(driver, 10).until(\n            EC.presence_of_element_located((AppiumBy.XPATH, \"//android.widget.TextView[contains(@text, 'Passenger Information')]\"))\n        )\n        assert driver.find_element(AppiumBy.XPATH, \"//android.widget.TextView[contains(@text, 'Passenger Information')]\").is_displayed()\n        logging.info(\"Test Case 8 passed: Specific train details are displayed\")\n    except Exception as e:\n        logging.error(f\"Test Case 8 failed: {e}\")\n        raise\n\ndef test_case_9():\n    # Verify viewing the train's route and performance information.\n    try:\n        route_info = driver.find_element(AppiumBy.XPATH, \"//android.widget.TextView[contains(@text, 'Route Information')]\")\n        assert route_info.is_displayed()\n        logging.info(\"Test Case 9 passed: Train's route and performance information is displayed\")\n    except Exception as e:\n        logging.error(f\"Test Case 9 failed: {e}\")\n        raise\n\n# Execute test cases\ntest_case_1()\ntest_case_2()\ntest_case_3()\ntest_case_4()\ntest_case_5()\ntest_case_6()\ntest_case_7()\ntest_case_8()\ntest_case_9()\n\n# Close the driver after tests\ndriver.quit()\n```\n\n### Notes:\n- Each test case includes a try-except block to handle exceptions and log the results.\n- The code assumes that the Appium server is running and the desired capabilities are set correctly for the Android application.\n- Adjust the XPaths and element identifiers as necessary based on the actual UI elements in the application."
+
+
+def setup():
+    global driver
+    options = UiAutomator2Options()
+    options.platform_name = 'Android'
+    options.device_name = 'emulator-5556'
+    options.app_package = 'com.ixigo.train.ixitrain'
+    options.app_activity = 'com.ixigo.train.ixitrain.TrainActivity'
+    options.no_reset = True
+
+    try:
+        driver = webdriver.Remote('http://localhost:4723/wd/hub', options=options)
+
+        # Navigate to the home screen
+        driver.press_keycode(3)
+
+        # Open the app drawer
+        driver.swipe(start_x=500, start_y=1500, end_x=500, end_y=500, duration=800)
+        WebDriverWait(driver, 30).until(
+            EC.presence_of_element_located((AppiumBy.XPATH, "//android.widget.TextView[@text='ixigo trains']"))
+        )
+
+        # Click on the ixigo app icon
+        ixigo_icon = driver.find_element(AppiumBy.XPATH, "//android.widget.TextView[@text='ixigo trains']")
+        ixigo_icon.click()
+
+        # Wait until the app is launched
+        WebDriverWait(driver, 30).until(
+            EC.presence_of_element_located((AppiumBy.XPATH, "//android.widget.TextView[@text='Trains']"))
+        )
+
+    except Exception as e:
+        logging.error(f"Error setting up Appium driver: {e}")
+        raise
+
+
+def teardown():
+    global driver
+    if driver:
+        driver.quit()
+
+
+def extract_test_cases(code_snippet):
+    """
+    Extract test case functions from the provided code snippet and append their calls.
+    
+    :param code_snippet: The entire code snippet as a string.
+    :return: A string containing all test case functions and their calls.
+    """
+    # Regular expression to match class methods starting with 'test_case_' and include all indented lines
+    test_case_pattern = re.compile(r'(def test_case_\d+\(\):\n(?: {4}.*\n)*)', re.MULTILINE)
+
+    # Find all matches in the provided code snippet
+    matches = test_case_pattern.findall(code_snippet)
+
+    # Join all matches with a newline to form the output string
+    result = "\n".join(matches)
+
+    # Extract test case function names
+    test_case_calls = [re.search(r'def (test_case_\d+)\(\):', match).group(1) for match in matches]
+
+    # Append the test case calls to the result
+    result += "\n\n" + "\n".join(f"{test_case_call}()" for test_case_call in test_case_calls)
+
+    return result
