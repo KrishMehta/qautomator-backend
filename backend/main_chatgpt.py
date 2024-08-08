@@ -838,26 +838,29 @@ async def execute_test(test_id: str):
     try:
         setup()
         for test_case in extracted_test_cases.split("\n\n"):
-            test_case_id = test_case.split('(')[0].strip()
             try:
                 print(test_case)
                 exec(test_case)
-                test_case_description = test_case.splitlines()[1].strip().lstrip("# ") if len(test_case.splitlines()) > 1 else ""
-                results.append({
-                    "testId": test_id,
-                    "testCaseId": test_case_id,
-                    "testCaseDescription": test_case_description,
-                    "status": "PASSED"
-                })
+                if test_case.strip().startswith("def "):
+                    test_case_id = re.search(r'def (test_case_\d+)\(\):', test_case).group(1)
+                    test_case_description = test_case.splitlines()[1].strip().lstrip("# ") if len(test_case.splitlines()) > 1 else ""
+                    results.append({
+                        "testId": test_id,
+                        "testCaseId": test_case_id,
+                        "testCaseDescription": test_case_description,
+                        "status": "PASSED"
+                    })
             except Exception as e:
-                logging.error(f"{test_case_id} failed: {e}")
-                test_case_description = test_case.splitlines()[1].strip().lstrip("# ") if len(test_case.splitlines()) > 1 else ""
-                results.append({
-                    "testId": test_id,
-                    "testCaseId": test_case_id,
-                    "testCaseDescription": test_case_description,
-                    "status": "FAILED"
-                })
+                if test_case.strip().startswith("def "):
+                    test_case_id = re.search(r'def (test_case_\d+)\(\):', test_case).group(1)
+                    test_case_description = test_case.splitlines()[1].strip().lstrip("# ")
+                    results.append({
+                        "testId": test_id,
+                        "testCaseId": test_case_id,
+                        "testCaseDescription": test_case_description,
+                        "status": "FAILED"
+                    })
+                    logging.error(f"{test_case_id} failed: {e}")
     except Exception as e:
         logging.error(f"Error during test execution: {e}")
     finally:
