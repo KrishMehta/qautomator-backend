@@ -1,8 +1,9 @@
 # Ignore all .log files
 backend/__pycache__/
 backend/qautomate/helpers/__pycache__/*
-/all_frames/
-/output_frames/
+/backend/all_frames/
+/backend/output_frames/
+/backend/videos/
 /backend/myenv/
 /venv/
 .idea/*
