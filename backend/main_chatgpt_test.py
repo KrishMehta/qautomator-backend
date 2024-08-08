@@ -88,11 +88,7 @@ def extract_test_cases(code_snippet):
 # Step 1: Upload video and get test ID
 start_time = time.time()
 with open(video_file_path, "rb") as file:
-    response = requests.post(
-        f"{base_url}/test/",
-        files={"video": file},
-        data={"product": "TRAINS", "name": "PNR_TESTING"}
-    )
+    response = requests.post(f"{base_url}/test/", files={"video": file})
 response.raise_for_status()
 test_id = response.json()["data"]["testId"]
 end_time = time.time()
