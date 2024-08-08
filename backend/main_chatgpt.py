@@ -826,3 +826,18 @@ def extract_test_cases(code_snippet):
     result += "\n\n" + "\n".join(f"{test_case_call}()" for test_case_call in test_case_calls)
 
     return result
+
+
+@app.post("/test/execute/{test_id}")
+async def execute_test(test_id: str):
+    test_cases_code = get_test_cases_code(test_id=test_id)
+    extracted_test_cases = extract_test_cases(test_cases_code)
+    print(f"Extracted test cases:\n{extracted_test_cases}")
+
+    try:
+        setup()
+        exec(extracted_test_cases)
+    except Exception as e:
+        logging.error(f"Error during test execution: {e}")
+    finally:
+        teardown()
