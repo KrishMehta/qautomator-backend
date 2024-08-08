@@ -720,10 +720,12 @@ async def generate_test_cases(test_id: str):
     if test_id not in database["tests"]:
         raise HTTPException(status_code=404, detail="Test not found")
 
+    if test_id not in database["func_flows"]:
+        await generate_func_flow(test_id)
+
     test = database["tests"][test_id]
     video_path = test["video_path"]
-
-    func_flow = await generate_func_flow(video_path)
+    func_flow = database["func_flows"][test_id]
 
     test_cases = await generate_test_cases(video_path, func_flow)
 
