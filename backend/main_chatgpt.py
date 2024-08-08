@@ -235,10 +235,11 @@ async def capture_frames_at_intervals(video_file, interval_ms=250, max_frames=25
         raise
 
 
-async def generate_func_flow(file: UploadFile = File(...)):
+async def generate_func_flow(video_path):
     logger.info("inside generate_func_flow")
     global base64_collage
-    base64_collage = await capture_frames_at_intervals(file, 250)
+    with open(video_path, "rb") as video_file:
+        base64_collage = await capture_frames_at_intervals(video_file, 250)
 
     # Prepare prompt messages
     prompt_messages = [
@@ -315,13 +316,12 @@ async def generate_func_flow(file: UploadFile = File(...)):
     return result.choices[0].message.content
 
 
-async def generate_test_cases(file: UploadFile = File(...),
-                              application_flow: str = Form(...)
-                              ):
+async def generate_test_cases(video_path: str, application_flow: str):
     logger.info("inside generate_test_cases")
     global base64_collage
     if base64_collage is None:
-        base64_collage = await capture_frames_at_intervals(file, 250)
+        with open(video_path, "rb") as video_file:
+            base64_collage = await capture_frames_at_intervals(video_file, 250)
 
     prompt_messages = [
         {
@@ -411,14 +411,13 @@ async def generate_test_cases(file: UploadFile = File(...),
     logger.info(f"Output cost: ${output_cost:.6f}")
     logger.info(f"Total cost: ${total_cost:.6f}")
 
-    return result.choices[0].message.content
+    return json.loads(result.choices[0].message.content)
 
 
-async def generate_code_for_test_cases(file: UploadFile = File(...),
-                                       application_flow: str = Form(...),
-                                       test_cases_list: str = Form(...),
-                                       os_type: str = Form(...),
-                                       ):
+async def generate_code_for_test_cases(video_path: str,
+                                       application_flow: str,
+                                       test_cases_list: str,
+                                       os_type: str = "android"):
     logger.info("inside generate_code_for_test_cases")
     logger.info("OS: %s", os_type)
 
@@ -426,7 +425,8 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
 
     global base64_collage
     if base64_collage is None:
-        base64_collage = await capture_frames_at_intervals(file, 250)
+        with open(video_path, "rb") as video_file:
+            base64_collage = await capture_frames_at_intervals(video_file, 250)
 
     impacted_screens = set()
     lines = test_case_list_obj.split("\n")
@@ -756,7 +756,7 @@ async def create_test_cases_code(test_id: str):
     func_flow = database["func_flows"][test_id]
     test_cases = database["test_cases"][test_id]
 
-    test_cases_code = await generate_code_for_test_cases(video_path, func_flow, test_cases)
+    test_cases_code = await generate_code_for_test_cases(video_path, func_flow, json.dumps(test_cases))
 
     database["test_cases_code"][test_id] = test_cases_code
 
