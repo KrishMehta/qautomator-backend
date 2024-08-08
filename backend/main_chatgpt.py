@@ -62,7 +62,7 @@ async def capture_frames_at_intervals(video_file, interval_ms=250, max_frames=25
     global base64_collage
     try:
         with tempfile.NamedTemporaryFile(delete=False) as tmp:
-            tmp.write(await video_file.read())
+            tmp.write(video_file.read())
             tmp_path = tmp.name
 
         video = cv2.VideoCapture(tmp_path)
@@ -83,11 +83,11 @@ async def capture_frames_at_intervals(video_file, interval_ms=250, max_frames=25
         previous_frame_gray = None
 
         # Create directories to save images
-        all_frames_dir = os.path.abspath('/app/backend/all_frames')
+        all_frames_dir = os.path.abspath('./all_frames')
         if not os.path.exists(all_frames_dir):
             os.makedirs(all_frames_dir)
 
-        output_frames_dir = os.path.abspath('/app/backend/output_frames')
+        output_frames_dir = os.path.abspath('./output_frames')
         if not os.path.exists(output_frames_dir):
             os.makedirs(output_frames_dir)
 
@@ -411,7 +411,7 @@ async def generate_test_cases(video_path: str, application_flow: str):
     logger.info(f"Output cost: ${output_cost:.6f}")
     logger.info(f"Total cost: ${total_cost:.6f}")
 
-    return json.loads(result.choices[0].message.content)
+    return result.choices[0].message.content
 
 
 async def generate_code_for_test_cases(video_path: str,
@@ -421,15 +421,13 @@ async def generate_code_for_test_cases(video_path: str,
     logger.info("inside generate_code_for_test_cases")
     logger.info("OS: %s", os_type)
 
-    test_case_list_obj = json.loads(test_cases_list)
-
     global base64_collage
     if base64_collage is None:
         with open(video_path, "rb") as video_file:
             base64_collage = await capture_frames_at_intervals(video_file, 250)
 
     impacted_screens = set()
-    lines = test_case_list_obj.split("\n")
+    lines = test_cases_list.split("\n")
     for line in lines:
         if line.startswith("- **Impacted Screens:**"):
             screens = [screen.strip().strip("[]") for screen in line.replace("- **Impacted Screens:**", "").split(",")]
@@ -675,6 +673,8 @@ async def create_test(video: UploadFile = File(...)):
     test_id = str(uuid.uuid4())
     video_path = f"./videos/{test_id}.mp4"
 
+    os.makedirs(os.path.dirname(video_path), exist_ok=True)
+
     with open(video_path, "wb") as buffer:
         shutil.copyfileobj(video.file, buffer)
 
@@ -692,11 +692,7 @@ async def create_test(video: UploadFile = File(...)):
 
 @app.post("/func_flow/{test_id}")
 async def create_func_flow(test_id: str):
-    if test_id not in database["tests"]:
-        raise HTTPException(status_code=404, detail="Test not found")
-
-    test = database["tests"][test_id]
-    video_path = test["video_path"]
+    video_path = f"./videos/{test_id}.mp4"
 
     func_flow = await generate_func_flow(video_path)
 
@@ -710,25 +706,18 @@ async def create_func_flow(test_id: str):
     }
 
 
+def get_func_flow(test_id: str):
+    return "**Functional Flow:**\n\n- **Step 1:** User launches the app and observes the splash screen, which displays the app logo and branding.\n\n- **Step 2:** User navigates to the main screen, where they see options for \"Trains,\" \"Flights,\" \"Buses,\" and \"Hotels.\" The user is presented with a search bar labeled \"Enter your 10 digit PNR\" and a \"Search\" button.\n\n- **Step 3:** User taps on the search bar and begins to input their PNR number. The keyboard appears for user input.\n\n- **Step 4:** User enters the PNR number \"1234567890\" and taps the \"Search\" button.\n\n- **Step 5:** The app processes the input and displays a message indicating that the PNR number is not valid. An \"OK\" button is shown for the user to dismiss the message.\n\n- **Step 6:** User clears the input field and re-enters the PNR number \"1234567890,\" then taps the \"Search\" button again.\n\n- **Step 7:** The app processes the input and transitions to a new screen displaying details for the train associated with the valid PNR. The screen shows train information, including train name, departure time, and arrival time.\n\n- **Step 8:** User views additional options such as \"Platform Locator,\" \"Refund Calculator,\" and promotional ads for credit cards and other services.\n\n- **Step 9:** User can tap on the train details to view more information, including passenger details and train ratings.\n\n- **Step 10:** User navigates back to the main screen or continues to interact with other features of the app, such as exploring other travel options.\n\nThis flow captures the essence of user interactions and the static UI elements present in the app, focusing on the sequence of actions and system responses."
+
+
 @app.post("/test_cases/{test_id}")
 async def create_test_cases(test_id: str):
-    if test_id not in database["tests"]:
-        raise HTTPException(status_code=404, detail="Test not found")
-
-    if test_id not in database["func_flows"]:
-        await create_func_flow(test_id)
-
-    test = database["tests"][test_id]
-    video_path = test["video_path"]
-    func_flow = database["func_flows"][test_id]
+    video_path = f"./videos/{test_id}.mp4"
+    func_flow = get_func_flow(test_id=test_id)
 
     test_cases = await generate_test_cases(video_path, func_flow)
 
     database["test_cases"][test_id] = test_cases
-
-    for idx, test_case in enumerate(test_cases):
-        test_case["testId"] = test_id
-        test_case["id"] = idx + 1
 
     return {
         "status": True,
@@ -738,28 +727,19 @@ async def create_test_cases(test_id: str):
     }
 
 
+def get_test_cases(test_id: str):
+    return "Here are the comprehensive UI-based test cases based on the functionality flow observed in the video frames:\n\n### Test Case 1:\n- **Description:** Verify the splash screen displays the app logo and branding upon launching the app.\n- **Impacted Screens:** home_screen\n- **Steps:**\n  1. Launch the app.\n- **Expected Outcome:** The splash screen should display the app logo and branding clearly.\n\n### Test Case 2:\n- **Description:** Verify navigation to the main screen and the presence of transportation options.\n- **Impacted Screens:** home_screen\n- **Steps:**\n  1. Launch the app.\n  2. Observe the main screen.\n- **Expected Outcome:** The main screen should display options for \"Trains,\" \"Flights,\" \"Buses,\" and \"Hotels,\" along with a search bar labeled \"Enter your 10 digit PNR\" and a \"Search\" button.\n\n### Test Case 3:\n- **Description:** Verify the search bar functionality when tapped.\n- **Impacted Screens:** home_screen\n- **Steps:**\n  1. Tap on the search bar labeled \"Enter your 10 digit PNR.\"\n- **Expected Outcome:** The keyboard should appear for user input.\n\n### Test Case 4:\n- **Description:** Verify user input in the search bar.\n- **Impacted Screens:** home_screen\n- **Steps:**\n  1. Tap on the search bar.\n  2. Enter the PNR number \"1234567890.\"\n- **Expected Outcome:** The input field should display \"1234567890.\"\n\n### Test Case 5:\n- **Description:** Verify the search functionality with an invalid PNR number.\n- **Impacted Screens:** pnr_status_screen\n- **Steps:**\n  1. Enter the PNR number \"1234567890.\"\n  2. Tap the \"Search\" button.\n- **Expected Outcome:** A message should display stating \"PNR No. is not valid\" with an \"OK\" button.\n\n### Test Case 6:\n- **Description:** Verify clearing the input field and re-entering the PNR number.\n- **Impacted Screens:** home_screen\n- **Steps:**\n  1. Clear the input field.\n  2. Re-enter the PNR number \"1234567890.\"\n  3. Tap the \"Search\" button.\n- **Expected Outcome:** The input field should display \"1234567890,\" and the app should transition to the PNR status screen.\n\n### Test Case 7:\n- **Description:** Verify the display of train details for a valid PNR number.\n- **Impacted Screens:** pnr_status_screen\n- **Steps:**\n  1. Enter a valid PNR number.\n  2. Tap the \"Search\" button.\n- **Expected Outcome:** The screen should display train information, including train name, departure time, and arrival time.\n\n### Test Case 8:\n- **Description:** Verify the presence of additional options on the PNR status screen.\n- **Impacted Screens:** pnr_status_screen\n- **Steps:**\n  1. Navigate to the PNR status screen.\n- **Expected Outcome:** The screen should display options such as \"Platform Locator,\" \"Refund Calculator,\" and promotional ads.\n\n### Test Case 9:\n- **Description:** Verify tapping on train details for more information.\n- **Impacted Screens:** pnr_status_screen\n- **Steps:**\n  1. Tap on the train details displayed on the PNR status screen.\n- **Expected Outcome:** The app should display more information, including passenger details and train ratings.\n\n### Test Case 10:\n- **Description:** Verify navigation back to the main screen.\n- **Impacted Screens:** home_screen\n- **Steps:**\n  1. Navigate back from the PNR status screen to the main screen.\n- **Expected Outcome:** The main screen should be displayed with all initial options intact.\n\n### Edge Cases:\n- **Test Case 11:** Verify behavior with an empty PNR input.\n  - **Impacted Screens:** pnr_status_screen\n  - **Steps:**\n    1. Leave the input field empty.\n    2. Tap the \"Search\" button.\n  - **Expected Outcome:** An error message should prompt the user to enter a valid PNR number.\n\n- **Test Case 12:** Verify behavior with a non-numeric PNR input.\n  - **Impacted Screens:** pnr_status_screen\n  - **Steps:**\n    1. Enter a non-numeric PNR (e.g., \"ABCDEF1234\").\n    2. Tap the \"Search\" button.\n  - **Expected Outcome:** An error message should indicate that the PNR number is invalid.\n\nThese test cases cover the key interactions and expected outcomes based on the static UI elements observed in the video frames."
+
+
 @app.post("/test_cases/code/{test_id}")
 async def create_test_cases_code(test_id: str):
-    if test_id not in database["tests"]:
-        raise HTTPException(status_code=404, detail="Test not found")
+    video_path = f"./videos/{test_id}.mp4"
+    func_flow = get_func_flow(test_id=test_id)
+    test_cases = get_test_cases(test_id=test_id)
 
-    if test_id not in database["func_flows"]:
-        await create_func_flow(test_id)
-
-    if test_id not in database["test_cases"]:
-        await create_test_cases(test_id)
-
-    test = database["tests"][test_id]
-    video_path = test["video_path"]
-    func_flow = database["func_flows"][test_id]
-    test_cases = database["test_cases"][test_id]
-
-    test_cases_code = await generate_code_for_test_cases(video_path, func_flow, json.dumps(test_cases))
+    test_cases_code = await generate_code_for_test_cases(video_path, func_flow, test_cases)
 
     database["test_cases_code"][test_id] = test_cases_code
-
-    for code in test_cases_code:
-        code["testId"] = test_id
 
     return {
         "status": True,
