@@ -9,7 +9,7 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import shutil
-from fastapi import FastAPI, File, Form, UploadFile
+from fastapi import FastAPI, File, Form, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from openai import OpenAI
 from skimage.metrics import structural_similarity as ssim
@@ -676,16 +676,16 @@ async def generate_code_for_test_cases(file: UploadFile = File(...),
 async def create_test(product: str, name: str, video: UploadFile = File(...)):
     test_id = str(uuid.uuid4())
     video_path = f"./videos/{test_id}.mp4"
-    
+
     with open(video_path, "wb") as buffer:
         shutil.copyfileobj(video.file, buffer)
-    
+
     database["tests"][test_id] = {
         "product": product,
         "name": name,
         "video_path": video_path,
     }
-    
+
     return {
         "status": True,
         "data": {
@@ -693,3 +693,28 @@ async def create_test(product: str, name: str, video: UploadFile = File(...)):
         }
     }
 
+
+@app.post("/test_cases/{test_id}")
+async def generate_test_cases(test_id: str):
+    if test_id not in database["tests"]:
+        raise HTTPException(status_code=404, detail="Test not found")
+
+    test = database["tests"][test_id]
+    video_path = test["video_path"]
+
+    func_flow = await generate_func_flow(video_path)
+
+    test_cases = await generate_test_cases(video_path, func_flow)
+
+    database["test_cases"][test_id] = test_cases
+
+    for idx, test_case in enumerate(test_cases):
+        test_case["testId"] = test_id
+        test_case["id"] = idx + 1
+
+    return {
+        "status": True,
+        "data": {
+            "testCases": test_cases
+        }
+    }
