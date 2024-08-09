@@ -709,7 +709,6 @@ async def create_func_flow(test_id: str):
     func_flow = await generate_func_flow(video_path)
 
     func_flow_data = {
-        "test_id": test_id,
         "func_flow": func_flow
     }
     db.collection("tests").document(test_id).update(func_flow_data)
@@ -734,7 +733,6 @@ async def create_test_cases(test_id: str):
     test_cases = await generate_test_cases(video_path, func_flow)
 
     test_cases_data = {
-        "test_id": test_id,
         "test_cases": test_cases
     }
     db.collection("tests").document(test_id).update(test_cases_data)
@@ -760,7 +758,6 @@ async def create_test_cases_code(test_id: str):
     test_cases_code = await generate_code_for_test_cases(video_path, func_flow, test_cases)
 
     test_cases_code_data = {
-        "test_id": test_id,
         "test_cases_code": test_cases_code
     }
     db.collection("tests").document(test_id).update(test_cases_code_data)
@@ -883,7 +880,6 @@ async def execute_test(test_id: str):
 
     # Store execution results in Firestore
     results_data = {
-        "test_id": test_id,
         "results": results
     }
     db.collection("tests").document(test_id).update(results_data)
