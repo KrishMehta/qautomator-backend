@@ -733,7 +733,11 @@ async def create_test_cases(test_id: str):
 
     test_cases = await generate_test_cases(video_path, func_flow)
 
-    database["test_cases"][test_id] = test_cases
+    test_cases_data = {
+        "test_id": test_id,
+        "test_cases": test_cases
+    }
+    db.collection("tests").document(test_id).update(test_cases_data)
 
     return {
         "status": True,
