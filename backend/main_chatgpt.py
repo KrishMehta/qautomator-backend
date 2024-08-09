@@ -509,6 +509,7 @@ async def generate_code_for_test_cases(video_path: str,
 
                     Notes: 
                     - Please use # instead of """ for comments in the code.
+                    - Please use AppiumBy.XPATH instead of simply By.XPATH.
                     - Please ensure any test case with a try block has a corresponding except block to handle exceptions.
                     
                     This is a collage of frames from a video that I want to upload.'''
