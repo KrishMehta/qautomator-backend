@@ -708,7 +708,11 @@ async def create_func_flow(test_id: str):
 
     func_flow = await generate_func_flow(video_path)
 
-    database["func_flows"][test_id] = func_flow
+    func_flow_data = {
+        "test_id": test_id,
+        "func_flow": func_flow
+    }
+    db.collection("tests").document(test_id).update(func_flow_data)
 
     return {
         "status": True,
