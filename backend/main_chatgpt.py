@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from firebase_config import db
 from openai import OpenAI
 from skimage.metrics import structural_similarity as ssim
 
@@ -687,9 +688,11 @@ async def create_test(video: UploadFile = File(...)):
     with open(video_path, "wb") as buffer:
         shutil.copyfileobj(video.file, buffer)
 
-    database["tests"][test_id] = {
-        "video_path": video_path,
+    test_data = {
+        "test_id": test_id,
+        "video_path": video_path
     }
+    db.collection("tests").document(test_id).set(test_data)
 
     return {
         "status": True,
