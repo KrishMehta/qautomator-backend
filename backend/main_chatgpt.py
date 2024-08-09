@@ -881,6 +881,13 @@ async def execute_test(test_id: str):
     finally:
         teardown()
 
+    # Store execution results in Firestore
+    results_data = {
+        "test_id": test_id,
+        "results": results
+    }
+    db.collection("tests").document(test_id).update(results_data)
+
     return {
         "status": True,
         "data": {
