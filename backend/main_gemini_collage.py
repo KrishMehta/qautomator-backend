@@ -458,6 +458,7 @@ async def generate_code_for_test_cases_gemini_collage(video_path: str,
                     Notes: 
                     - Please use # instead of """ for comments in the code.
                     - Please use AppiumBy.XPATH instead of simply By.XPATH.
+                    - Please use assert driver.find_element(AppiumBy.ID, "com.ixigo.train.ixitrain:id/btn_search").is_displayed() instead of # assert driver.find_element(AppiumBy.XPATH, "//android.widget.Button[@text='Search']").is_displayed()
                     - Please ensure any test case with a try block has a corresponding except block to handle exceptions.
                     
                     This is a collage of frames from a video that I want to upload.'''
