@@ -29,15 +29,6 @@ services:
     depends_on:
       - db
 
-  main_gemini_frames:
-    build:
-      context: .
-      dockerfile: Dockerfile.gemini_frames
-    ports:
-      - "8000:8000"
-    depends_on:
-      - db
-
   db:
     image: postgres:latest
     environment:
