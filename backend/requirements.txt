@@ -1,11 +1,11 @@
 fastapi
-uvicorn
-python-multipart
+firebase-admin
+google.generativeai
+matplotlib
 opencv-python
 openai
-vertexai
-google.generativeai
-firebase-admin
+python-multipart
 scikit-image
-matplotlib
+uvicorn
+vertexai
 Appium-Python-Client
