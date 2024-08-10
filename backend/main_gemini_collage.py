@@ -425,7 +425,7 @@ async def generate_code_for_test_cases_gemini_collage(video_path: str,
                         def test_case_1():
                             # Verify that the app launches and displays the home screen with app icons.
                             try:
-                                WebDriverWait(driver, 10).until(
+                                WebDriverWait(driver, 30).until(
                                     EC.presence_of_element_located((AppiumBy.XPATH, "//android.widget.TextView[@text='Trains']"))
                                 )
                                 assert driver.find_element(AppiumBy.XPATH, "//android.widget.TextView[@text='Trains']").is_displayed()
@@ -437,13 +437,13 @@ async def generate_code_for_test_cases_gemini_collage(video_path: str,
                         def test_case_2():
                             # Verify that the PNR status screen displays the correct title and input field.
                             try:
-                                WebDriverWait(driver, 10).until(
+                                WebDriverWait(driver, 30).until(
                                     EC.presence_of_element_located((AppiumBy.XPATH, "//android.widget.TextView[@text='PNR Status']"))
                                 )
                                 train_status_button = driver.find_element(AppiumBy.XPATH, "//android.widget.TextView[@text='PNR Status']")
                                 train_status_button.click()
 
-                                WebDriverWait(driver, 10).until(
+                                WebDriverWait(driver, 30).until(
                                     EC.presence_of_element_located((AppiumBy.XPATH, "//android.widget.TextView[@text='Running Status']"))
                                 )
                                 assert driver.find_element(AppiumBy.XPATH, "//android.widget.TextView[@text='Running Status']").is_displayed()
