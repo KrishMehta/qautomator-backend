@@ -605,8 +605,8 @@ async def execute_test(test_id: str):
                 exec(test_case)
                 if test_case.strip().startswith("def "):
                     test_case_id = re.search(r'def (test_case_\d+)\(\):', test_case).group(1)
-                    test_case_description = test_case.splitlines()[1].strip().lstrip("# ") if len(
-                        test_case.splitlines()) > 1 else ""
+                    test_case_description = test_case.splitlines()[1].strip().lstrip("# ") \
+                        if len(test_case.splitlines()) > 1 else ""
                     results.append({
                         "testId": test_id,
                         "testCaseId": test_case_id,
