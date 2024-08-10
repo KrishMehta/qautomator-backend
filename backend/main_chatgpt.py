@@ -860,36 +860,33 @@ def extract_test_case_calls(code_snippet):
 async def execute_test(test_id: str):
     test_cases_code = get_test_cases_code(test_id=test_id)
     extracted_test_cases = extract_test_cases(test_cases_code)
+    extracted_test_case_calls = extract_test_case_calls(test_cases_code)
 
     results = []
 
     try:
         setup()
-        for test_case in extracted_test_cases.split("\n\n"):
+        for test_case, test_case_call in zip(extracted_test_cases, extracted_test_case_calls):
+            print(test_case)
+            print(test_case_call)
+            test_case_id = re.search(r'def (test_case_\d+)\(\):', test_case).group(1)
+            combined_code = test_case + f"\n\n{test_case_call}"
             try:
-                print(test_case)
-                exec(test_case)
-                if test_case.strip().startswith("def "):
-                    test_case_id = re.search(r'def (test_case_\d+)\(\):', test_case).group(1)
-                    test_case_description = test_case.splitlines()[1].strip().lstrip("# ") \
-                        if len(test_case.splitlines()) > 1 else ""
-                    results.append({
-                        "testId": test_id,
-                        "testCaseId": test_case_id,
-                        "testCaseDescription": test_case_description,
-                        "status": "PASSED"
-                    })
+                exec(combined_code)
+                results.append({
+                    "testId": test_id,
+                    "testCaseId": test_case_id,
+                    "testCaseDescription": test_case.splitlines()[1].strip().lstrip("# ") if len(test_case.splitlines()) > 1 else "",
+                    "status": "PASSED"
+                })
             except Exception as e:
-                if test_case.strip().startswith("def "):
-                    test_case_id = re.search(r'def (test_case_\d+)\(\):', test_case).group(1)
-                    test_case_description = test_case.splitlines()[1].strip().lstrip("# ")
-                    results.append({
-                        "testId": test_id,
-                        "testCaseId": test_case_id,
-                        "testCaseDescription": test_case_description,
-                        "status": "FAILED"
-                    })
-                    logging.error(f"{test_case_id} failed: {e}")
+                results.append({
+                    "testId": test_id,
+                    "testCaseId": test_case_id,
+                    "testCaseDescription": test_case.splitlines()[1].strip().lstrip("# ") if len(test_case.splitlines()) > 1 else "",
+                    "status": "FAILED"
+                })
+                logging.error(f"{test_case_id} failed: {e}")
     except Exception as e:
         logging.error(f"Error during test execution: {e}")
     finally:
