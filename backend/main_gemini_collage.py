@@ -746,10 +746,10 @@ def teardown():
 
 def extract_test_cases(code_snippet):
     """
-    Extract test case functions from the provided code snippet and append their calls.
+    Extract test case functions from the provided code snippet.
 
     :param code_snippet: The entire code snippet as a string.
-    :return: A string containing all test case functions and their calls.
+    :return: A list containing all test case functions.
     """
     # Regular expression to match class methods starting with 'test_case_' and include all indented lines
     test_case_pattern = re.compile(r'(def test_case_\d+\(\):\n(?: {4}.*\n)*)', re.MULTILINE)
@@ -757,52 +757,58 @@ def extract_test_cases(code_snippet):
     # Find all matches in the provided code snippet
     matches = test_case_pattern.findall(code_snippet)
 
-    # Join all matches with a newline to form the output string
-    result = "\n".join(matches)
-
-    # Extract test case function names
-    test_case_calls = [re.search(r'def (test_case_\d+)\(\):', match).group(1) for match in matches]
-
-    # Append the test case calls to the result
-    result += "\n\n" + "\n".join(f"{test_case_call}()" for test_case_call in test_case_calls)
-
-    return result
+    return matches
 
 
-@app.post("/gemini_collage/test/execute/{test_id}")
+def extract_test_case_calls(code_snippet):
+    """
+    Extract test case function calls from the provided code snippet.
+
+    :param code_snippet: The entire code snippet as a string.
+    :return: A list containing all test case calls.
+    """
+    # Regular expression to match class methods starting with 'test_case_'
+    test_case_pattern = re.compile(r'def (test_case_\d+)\(\):')
+
+    # Find all matches in the provided code snippet
+    matches = test_case_pattern.findall(code_snippet)
+
+    return [f"{test_case_call}()" for test_case_call in matches]
+
+
+@app.post("/test/execute/{test_id}")
 async def execute_test(test_id: str):
     test_cases_code = get_test_cases_code(test_id=test_id)
     extracted_test_cases = extract_test_cases(test_cases_code)
+    extracted_test_case_calls = extract_test_case_calls(test_cases_code)
 
     results = []
 
     try:
         setup()
-        for test_case in extracted_test_cases.split("\n\n"):
+        for test_case, test_case_call in zip(extracted_test_cases, extracted_test_case_calls):
+            print(test_case)
+            print(test_case_call)
+            test_case_id = re.search(r'def (test_case_\d+)\(\):', test_case).group(1)
+            combined_code = test_case + f"\n\n{test_case_call}"
             try:
-                print(test_case)
-                exec(test_case)
-                if test_case.strip().startswith("def "):
-                    test_case_id = re.search(r'def (test_case_\d+)\(\):', test_case).group(1)
-                    test_case_description = test_case.splitlines()[1].strip().lstrip("# ") \
-                        if len(test_case.splitlines()) > 1 else ""
-                    results.append({
-                        "testId": test_id,
-                        "testCaseId": test_case_id,
-                        "testCaseDescription": test_case_description,
-                        "status": "PASSED"
-                    })
+                exec(combined_code)
+                results.append({
+                    "testId": test_id,
+                    "testCaseId": test_case_id,
+                    "testCaseDescription": test_case.splitlines()[1].strip().lstrip("# ") if len(
+                        test_case.splitlines()) > 1 else "",
+                    "status": "PASSED"
+                })
             except Exception as e:
-                if test_case.strip().startswith("def "):
-                    test_case_id = re.search(r'def (test_case_\d+)\(\):', test_case).group(1)
-                    test_case_description = test_case.splitlines()[1].strip().lstrip("# ")
-                    results.append({
-                        "testId": test_id,
-                        "testCaseId": test_case_id,
-                        "testCaseDescription": test_case_description,
-                        "status": "FAILED"
-                    })
-                    logging.error(f"{test_case_id} failed: {e}")
+                results.append({
+                    "testId": test_id,
+                    "testCaseId": test_case_id,
+                    "testCaseDescription": test_case.splitlines()[1].strip().lstrip("# ") if len(
+                        test_case.splitlines()) > 1 else "",
+                    "status": "FAILED"
+                })
+                logging.error(f"{test_case_id} failed: {e}")
     except Exception as e:
         logging.error(f"Error during test execution: {e}")
     finally:
