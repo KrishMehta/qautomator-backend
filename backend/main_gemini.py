@@ -8,7 +8,7 @@ import tempfile
 import time
 import uuid
 
-from fastapi import FastAPI, File, Form, UploadFile
+from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from firebase_config import db
 
