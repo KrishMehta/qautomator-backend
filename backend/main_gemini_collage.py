@@ -1,25 +1,32 @@
 import base64
+import json
+import logging
+import os
+import re
+import shutil
+import tempfile
+import uuid
+
 import cv2
 import google.generativeai as genai
-import json
-import multiprocessing
+import matplotlib.pyplot as plt
 import numpy as np
-import os
-import tempfile
-
+from fastapi import FastAPI, File, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from firebase_config import db
 from io import BytesIO
 from PIL import Image
-from fastapi import FastAPI, File, Form, UploadFile
-from fastapi.middleware.cors import CORSMiddleware
 from skimage.metrics import structural_similarity as ssim
-from pydantic import BaseModel
 
-from qautomate.helpers.visual_testing_helper import (
-    process_color_in_images,
-    process_layout_in_images,
-    process_text_in_images,
-    visual_analyze
-)
+from appium import webdriver
+from appium.options.android import UiAutomator2Options
+from appium.webdriver.common.appiumby import AppiumBy
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 app.add_middleware(
@@ -33,13 +40,13 @@ app.add_middleware(
 # Read the value of the environment variable
 gemini_key = os.getenv('gemini_key')
 if not gemini_key:
-    raise ValueError("No Gemini API key found in environment variable 'GOOGLE_API_KEY'")
+    raise ValueError("No Gemini API key found in environment variable 'gemini_key'")
 genai.configure(api_key=gemini_key)
 
 all_screens = {
-    "home_screen": "The main screen allows users to book trains, flights, buses, and hotels, with search fields for train routes, date selection, and options for checking running status and PNR status. Key UI elements include tabs for different transportation modes, search functionality, and quick access to services like seat availability and food orders.",
+    "home_screen": "This screen allows users to book trains, flights, buses, and hotels, with search fields for train routes, date selection, and options for checking running status and PNR status. Key UI elements include tabs for different transportation modes, search functionality, and quick access to services like seat availability and food orders.",
     "pnr_status_screen": "This screen allows users to check their train PNR status by entering their 10-digit PNR number. It also provides quick access to features like coach and seat information, platform locator, refund calculator, and ixigo AU card services.",
-    "search_result_page_trains": "This screen displays available train options for a selected route and date, showing train names, departure and arrival times, travel duration, and fare details. It includes filters for best available and AC-only options, along with seat availability and schedule links for each train."
+    "srp_screen": "This screen displays available train options for a selected route and date, showing train names, departure and arrival times, travel duration, and fare details. It includes filters for best available and AC-only options, along with seat availability and schedule links for each train."
 }
 
 with open('qautomate/screen_ui_elements_map.json', 'r') as f:
@@ -48,17 +55,16 @@ with open('qautomate/screen_ui_elements_map.json', 'r') as f:
 with open('qautomate/screen_ui_elements_map_ios.json', 'r') as f:
     screen_mapper_ios = json.load(f)
 
-with open('qautomate/screens_for_visual_testing.json', 'r') as f:
-    visual_testing_images = json.load(f)
-
 base64_collage = None
 
+driver = None
 
-async def capture_frames_at_intervals(video_file, interval_ms=250):
+
+async def capture_frames_at_intervals(video_file, interval_ms=250, max_frames=25):
     global base64_collage
     try:
         with tempfile.NamedTemporaryFile(delete=False) as tmp:
-            tmp.write(await video_file.read())
+            tmp.write(video_file.read())
             tmp_path = tmp.name
 
         video = cv2.VideoCapture(tmp_path)
@@ -70,15 +76,57 @@ async def capture_frames_at_intervals(video_file, interval_ms=250):
         total_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
         duration_ms = int((total_frames / fps) * 1000)
 
-        print(f"Video FPS: {fps}")
-        print(f"Total frames: {total_frames}")
-        print(f"Estimated duration (milliseconds): {duration_ms}")
+        logger.info(f"Video FPS: {fps}")
+        logger.info(f"Total frames: {total_frames}")
+        logger.info(f"Estimated duration (milliseconds): {duration_ms}")
 
         frames = []
         frame_count = 0
         previous_frame_gray = None
 
-        for ms in range(0, duration_ms + 1, interval_ms):  # Include the last frame
+        # Create directories to save images
+        all_frames_dir = os.path.abspath('./all_frames')
+        if not os.path.exists(all_frames_dir):
+            os.makedirs(all_frames_dir)
+
+        output_frames_dir = os.path.abspath('./output_frames')
+        if not os.path.exists(output_frames_dir):
+            os.makedirs(output_frames_dir)
+
+        # Capture the first frame
+        video.set(cv2.CAP_PROP_POS_MSEC, 0)
+        success, frame = video.read()
+        if success:
+            frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            frames.append(frame)
+            frame_count += 1
+
+            logger.info("Frame at 0 ms added")
+
+            previous_frame_gray = frame_gray
+
+            # Save the first frame
+            frame_path = os.path.join(output_frames_dir, 'frame_0.jpg')
+            plt.figure()
+            plt.imshow(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+            plt.title('Frame at 0 ms')
+            plt.axis('off')
+            plt.savefig(frame_path)
+            plt.close()
+
+            all_frames_path = os.path.join(all_frames_dir, 'frame_0.jpg')
+            plt.figure()
+            plt.imshow(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+            plt.title('Frame at 0 ms')
+            plt.axis('off')
+            plt.savefig(all_frames_path)
+            plt.close()
+        else:
+            logger.warning("Warning: First frame could not be read.")
+
+        ssim_differences = []
+
+        for ms in range(interval_ms, duration_ms + 1, interval_ms):  # Start from interval_ms
             video.set(cv2.CAP_PROP_POS_MSEC, ms)  # Set the position of the video in milliseconds
             success, frame = video.read()
             if success:
@@ -87,19 +135,66 @@ async def capture_frames_at_intervals(video_file, interval_ms=250):
                 if previous_frame_gray is not None:
                     similarity, _ = ssim(previous_frame_gray, frame_gray, full=True)
                     difference = 1 - similarity  # SSIM returns similarity not difference
+                    ssim_differences.append(difference)
 
-                    if difference > 0.10:  # Check for greater than 10% difference
+                previous_frame_gray = frame_gray
+
+                # Save all frames
+                all_frames_path = os.path.join(all_frames_dir, f'frame_{ms}.jpg')
+                plt.figure()
+                plt.imshow(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+                plt.title(f'Frame at {ms} ms')
+                plt.axis('off')
+                plt.savefig(all_frames_path)
+                plt.close()
+            else:
+                logger.warning(f"Warning: Frame at {ms} ms could not be read.")
+
+        # Calculate dynamic SSIM threshold based on variance in differences
+        if ssim_differences:
+            mean_diff = np.mean(ssim_differences)
+            std_diff = np.std(ssim_differences)
+            threshold = mean_diff + std_diff
+        else:
+            threshold = 0.10  # Default threshold if no SSIM differences calculated
+
+        logger.info(f"Dynamic SSIM threshold set to: {threshold:.2%}")
+
+        previous_frame_gray = None
+
+        for ms in range(interval_ms, duration_ms + 1, interval_ms):
+            video.set(cv2.CAP_PROP_POS_MSEC, ms)
+            success, frame = video.read()
+            if success:
+                frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+                if previous_frame_gray is not None:
+                    similarity, _ = ssim(previous_frame_gray, frame_gray, full=True)
+                    difference = 1 - similarity
+
+                    if difference > threshold:
                         frames.append(frame)
                         frame_count += 1
-                        print(f"Frame at {ms} ms added with SSIM difference ratio: {difference:.2%}")
+                        logger.info(f"Frame at {ms} ms added with SSIM difference ratio: {difference:.2%}")
+                        # Save the selected frame
+                        frame_path = os.path.join(output_frames_dir, f'frame_{ms}.jpg')
+                        plt.figure()
+                        plt.imshow(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+                        plt.title(f'Frame at {ms} ms')
+                        plt.axis('off')
+                        plt.savefig(frame_path)
+                        plt.close()
+
+                        if frame_count >= max_frames:
+                            break
                     else:
-                        print(f"Skipping frame at {ms} ms due to low SSIM difference ratio: {difference:.2%}")
+                        logger.info(f"Skipping frame at {ms} ms due to low SSIM difference ratio: {difference:.2%}")
 
                 previous_frame_gray = frame_gray
             else:
-                print(f"Warning: Frame at {ms} ms could not be read.")
+                logger.warning(f"Warning: Frame at {ms} ms could not be read.")
 
-        print(f"{frame_count} frames read and selected (every {interval_ms} ms).")
+        logger.info(f"{frame_count} frames read and selected (every {interval_ms} ms).")
 
         if not frames:
             raise ValueError("No frames selected for the collage.")
@@ -126,19 +221,28 @@ async def capture_frames_at_intervals(video_file, interval_ms=250):
         _, buffer = cv2.imencode(".jpg", resized_collage)
         base64_collage = base64.b64encode(buffer).decode("utf-8")
 
+        # Save and display the final collage
+        collage_path = os.path.join(output_frames_dir, 'final_collage.jpg')
+        logger.info(f'Saving final collage to {collage_path}')
+        plt.figure(figsize=(10, 10))
+        plt.imshow(cv2.cvtColor(resized_collage, cv2.COLOR_BGR2RGB))
+        plt.title('Final Collage')
+        plt.axis('off')
+        plt.savefig(collage_path)
+        plt.close()
+
         return base64_collage
-
     except Exception as e:
-        print(f"An error occurred: {e}")
-    finally:
-        video.release()
+        logger.error(f"An error occurred: {str(e)}")
+        raise
 
 
-@app.post("/func_flow_gemini_collage/")
-async def generate_func_flow_gemini_collage(file: UploadFile = File(...)):
-    print("inside generate_func_flow")
+async def generate_func_flow_gemini_collage(video_path):
+    logger.info("inside generate_func_flow")
+
     global base64_collage
-    base64_collage = await capture_frames_at_intervals(file, 250)
+    with open(video_path, "rb") as video_file:
+        base64_collage = await capture_frames_at_intervals(video_file, 250)
 
     img_data = base64.b64decode(base64_collage)
     img = Image.open(BytesIO(img_data))
@@ -147,58 +251,57 @@ async def generate_func_flow_gemini_collage(file: UploadFile = File(...)):
     image_file = genai.upload_file(path="collage.jpg")
 
     # Create the prompt
-    prompt = '''I am testing an Android application using video analysis to understand its functionality of 
-    scheduled flight status flow. Specifically, I need to analyze the video frames of the application to generate a detailed functionality flow based on user interactions, focusing on the static UI elements and predefined states.
-    
-    The video frames have been captured and arranged into a collage image. The collage should be read from left to right and top to bottom. Each row of the collage represents a sequence of frames captured at regular intervals.
+    prompt = '''I am testing an Android application using video analysis to understand its functionality.
+                    Specifically, I need to analyze the video frames of the application to generate a detailed functionality flow based on user interactions, focusing on the static UI elements and predefined states.
                 
-    Please follow these steps:
+                    The video frames have been captured and arranged into a collage image. The collage should be read from left to right and top to bottom. Each row of the collage represents a sequence of frames captured at regular intervals.
                 
-    1. **Analyze the Collage:**
-        - Observe the collage image to identify the sequence of user interactions with the application.
-        - Note down each step in detail, including any screen transitions, user inputs, and system responses, focusing on static UI elements and not on dynamic data from API responses.
+                    Please follow these steps:
                 
-    2. **Generate the Functional Flow:**
-        - Provide a detailed flow of the feature based on the observed interactions in the collage.
-        - Clearly depict each step, including relevant conditions or branching logic triggered by user interactions or predictable system responses.
-        - Ensure that each step is described in the order it occurs, emphasizing static elements like buttons, input fields, labels, and predefined messages.
+                    1. **Analyze the Collage:**
+                       - Observe the collage image to identify the sequence of user interactions with the application.
+                       - Note down each step in detail, including any screen transitions, user inputs, and system responses, focusing on static UI elements and not on dynamic data from API responses.
                 
-    Example Structure:
+                    2. **Generate the Functional Flow:**
+                       - Provide a detailed flow of the feature based on the observed interactions in the collage.
+                       - Clearly depict each step, including relevant conditions or branching logic triggered by user interactions or predictable system responses.
+                       - Ensure that each step is described in the order it occurs, emphasizing static elements like buttons, input fields, labels, and predefined messages.
                 
-    **Functional Flow:**
-    - Step 1: [Description of user interaction and initial state, e.g., "User launches the app and observes the splash screen."]
-    - Step 2: [Description of subsequent interaction and app response, focusing on static elements, e.g., "User navigates to the main screen and sees options for Trains, Flights, Buses, and Hotels."]
-    - Step 3: [Repeat for each step observed, describing user interactions and static components only.]
+                    Example Structure:
                 
-    Focus: Capture the functionality flow based on user interactions as seen in the collage, 
-    concentrating on static UI elements and avoiding reliance on dynamic data. Each step should be clear and concise, 
-    capturing the essence of user actions and predictable app behavior.
+                    **Functional Flow:**
+                    - Step 1: [Description of user interaction and initial state, e.g., "User launches the app and observes the splash screen."]
+                    - Step 2: [Description of subsequent interaction and app response, focusing on static elements, e.g., "User navigates to the main screen and sees options for Trains, Flights, Buses, and Hotels."]
+                    - Step 3: [Repeat for each step observed, describing user interactions and static components only.]
                 
-    This is a collage of frames from a video that I want to upload.'''
+                    Focus: Capture the functionality flow based on user interactions as seen in the collage, 
+                    concentrating on static UI elements and avoiding reliance on dynamic data. Each step should be clear and concise, 
+                    capturing the essence of user actions and predictable app behavior.
+                
+                    This is a collage of frames from a video that I want to upload.'''
 
     # Set the model to Gemini 1.5 Pro.
     model = genai.GenerativeModel(model_name="models/gemini-1.5-pro-latest")
 
     # Make the LLM request.
-    print("Making LLM inference request...")
+    logger.info("Making LLM inference request...")
     response = model.generate_content([prompt, image_file],
                                       request_options={"timeout": 600})
 
     total_tokens = response.usage_metadata.total_token_count
-    print("Total tokens used", total_tokens)
+    logger.info("Total tokens used: %s", total_tokens)
 
-    print("result", response.text)
-    return {"result": response.text}
+    logger.info("result: %s", response.text)
+    return response.text
 
 
-@app.post("/generate_test_cases_gemini_collage/")
-async def generate_test_cases_gemini_collage(file: UploadFile = File(...),
-                                             application_flow: str = Form(...),
-                                             type_of_flow: str = Form(...)):
-    print("generating TCs")
+async def generate_test_cases_gemini_collage(video_path: str, application_flow: str):
+    logger.info("inside generate_test_cases")
+
     global base64_collage
     if base64_collage is None:
-        base64_collage = await capture_frames_at_intervals(file, 250)
+        with open(video_path, "rb") as video_file:
+            base64_collage = await capture_frames_at_intervals(video_file, 250)
 
     img_data = base64.b64decode(base64_collage)
     img = Image.open(BytesIO(img_data))
@@ -208,78 +311,77 @@ async def generate_test_cases_gemini_collage(file: UploadFile = File(...),
 
     # Create the prompt
     prompt = f'''Based on the detailed functionality flow generated from the video frames,
-    I need to create comprehensive UI-based test cases for the functionality of {type_of_flow}, based on the detailed functionality flow generated from the video frames.
+                    I need to create comprehensive UI-based test cases based on the detailed functionality flow generated from the video frames.
 
-    Please make sure that the test cases are comprehensive, covering all possible scenarios as observed in the video frames, and have expected outcomes based on static UI elements in the video frames and not dependent on dynamic data from APIs.
-    All Screens available {all_screens}
+                    Please make sure that the test cases are comprehensive, covering all possible scenarios as observed in the video frames, and have expected outcomes based on static UI elements in the video frames and not dependent on dynamic data from APIs.
+    
+                    ### Instructions:
+
+                    1. **Review the Functional Flow:**
+                       - Carefully review the functionality flow generated from the video analysis.
+                       - Understand each interaction and the corresponding system response.
+                       - Focus on the static UI elements involved in each interaction (e.g., buttons, input fields, labels) rather than dynamic content.
+                        {application_flow}
+
+                    2. **Generate Test Cases:**
+                       - Create detailed UI test cases for each interaction with the application.
+                       - Ensure each test case includes:
+                         - A clear and specific description of the test case
+                         - Attach the impacted screen names along with it.
+                         - Step-by-step instructions based on observed interactions in the video frames
+                         - Specific and measurable expected outcomes based solely on static UI elements (e.g., presence of buttons, input fields, labels)
+                         - Identification of edge cases and potential user errors (e.g., incorrect inputs, system errors)
+
+                        Example Structure:
+
+                        **Test Case 1:**
+                        - **Description:** [Detailed description of the test case]
+                        - **Impacted Screens:** [screen1, screen2]
+                        - **Steps:**
+                          1. [Step-by-step instructions]
+                          2. [Continue steps as necessary]
+                        - **Expected Outcome:** [Specific expected results that can be validated using UI elements]
+
+                        **Test Case 2:**
+                        - **Description:** [Another detailed description]
+                        - **Impacted Screens:** [screen1]
+                        - **Steps:**
+                          1. [Step-by-step instructions]
+                          2. [Continue steps]
+                        - **Expected Outcome:** [Specific expected results]
+                        
+                    Note: The names of the impacted screens should match the following list exactly: {list(screen_mapper_android.keys())}.
+                        
+                    These are all the screens that are available: {all_screens}
                     
-    ### Instructions:
-
-    1. **Review the Functional Flow:**
-    - Carefully review the functionality flow generated from the video analysis.
-    - Understand each interaction and the corresponding system response.
-    - Focus on the static UI elements involved in each interaction (e.g., buttons, input fields, labels) rather than dynamic content.
-    {application_flow}
-
-    2. **Generate Test Cases:**
-    - Create detailed UI test cases for each interaction with the application.
-    - Ensure each test case includes:
-        - A clear and specific description of the test case
-        - Attach the impacted screen names along with it.
-        - Step-by-step instructions based on observed interactions in the video frames
-        - Specific and measurable expected outcomes based solely on static UI elements (e.g., presence of buttons, input fields, labels)
-        - Identification of edge cases and potential user errors (e.g., incorrect inputs, system errors)
-
-
-    Example Structure:
-
-    **Test Case 1:**
-    - **Description:** [Detailed description of the test case]
-    - **Impacted Screens:** [screen1, screen2]
-    - **Steps:**
-        1. [Step-by-step instructions]
-        2. [Continue steps as necessary]
-    - **Expected Outcome:** [Specific expected results that can be validated using UI elements]
-
-    **Test Case 2:**
-    - **Description:** [Another detailed description]
-    - **Impacted Screens:** [screen1]
-    - **Steps:**
-        1. [Step-by-step instructions]
-        2. [Continue steps]
-    - **Expected Outcome:** [Specific expected results]
-
-    This is a collage of frames from a video that I want to upload.'''
+                    This is a collage of frames from a video that I want to upload.'''
 
     # Set the model to Gemini 1.5 Pro.
     model = genai.GenerativeModel(model_name="models/gemini-1.5-pro-latest")
 
     # Make the LLM request.
-    print("Making LLM inference request...")
+    logger.info("Making LLM inference request...")
     response = model.generate_content([prompt, image_file],
                                       request_options={"timeout": 600})
 
     total_tokens = response.usage_metadata.total_token_count
-    print("Total tokens used", total_tokens)
+    logger.info("Total tokens used: %s", total_tokens)
 
-    print("result", response.text)
-    return {"result": response.text}
+    logger.info("result: %s", response.text)
+    return response.text
 
 
-@app.post("/generate_test_cases_code_gemini_collage")
-async def generate_code_for_test_cases_gemini_collage(file: UploadFile = File(...),
-                                                      application_flow: str = Form(...),
-                                                      type_of_flow: str = Form(...),
-                                                      test_cases_list: str = Form(...),
-                                                      os_type: str = Form(...)):
-    print("TC list", test_cases_list)
-    print("OS", os_type)
-
-    test_case_list_obj = json.loads(test_cases_list)
+async def generate_code_for_test_cases_gemini_collage(video_path: str,
+                                                      application_flow: str,
+                                                      test_cases_list: str,
+                                                      os_type: str = "android"):
+    logger.info("inside generate_code_for_test_cases")
+    logger.info("OS: %s", os_type)
 
     global base64_collage
     if base64_collage is None:
-        base64_collage = await capture_frames_at_intervals(file, 250)
+        with open(video_path, "rb") as video_file:
+            base64_collage = await capture_frames_at_intervals(video_file, 250)
 
     img_data = base64.b64decode(base64_collage)
     img = Image.open(BytesIO(img_data))
@@ -288,226 +390,194 @@ async def generate_code_for_test_cases_gemini_collage(file: UploadFile = File(..
     image_file = genai.upload_file(path="collage.jpg")
 
     impacted_screens = set()
-    for test_case in test_case_list_obj:
-        lines = test_case.split("\n")
-        for line in lines:
-            if line.startswith("- **Impacted Screens:**"):
-                screens = line.replace("- **Impacted Screens:**", "").strip().split(", ")
-                impacted_screens.update(screens)
+    lines = test_cases_list.split("\n")
+    for line in lines:
+        if line.startswith("- **Impacted Screens:**"):
+            screens = [screen.strip().strip("[]") for screen in line.replace("- **Impacted Screens:**", "").split(",")]
+            impacted_screens.update(screens)
 
+    logger.info("impacted_screens: %s", impacted_screens)
     screen_mapper = screen_mapper_android if os_type == "android" else screen_mapper_ios
     screen_data = {screen: screen_mapper.get(screen, {}) for screen in impacted_screens}
 
-    print("Screen Data:", screen_data)
-
     # Create the prompt
-    prompt_android = f'''I have developed test cases for an Android application based on the {type_of_flow} functionality.
-    Using the provided video frames, functional flow, the xpaths of UI elements, and test cases,
-    I need to generate Appium code with appropriate assertions and comments and automate the testing of this
-    specific functionality.
+    prompt_android = f'''I have developed test cases for an Android application.
+                    Using the provided video frames, functional flow, the xpaths of UI elements, and test cases,
+                    I need to generate Appium code with appropriate assertions and comments and automate the testing of this
+                    specific functionality.
 
-    Note that widgets in the app can be EditText, TextView, Button or some other type, so use XPath given in the prompt 
-    to locate these components. Make sure to use static UI elements not dependent on dynamic data from APIs.
+                    Note that widgets in the app can be EditText, TextView, Button or some other type, so use XPath given in the prompt 
+                    to locate these components. Make sure to use static UI elements not dependent on dynamic data from APIs.
 
-    Here are the key details:
+                    Here are the key details:
 
-    ### Functional Flow: 
-    {application_flow}
+                    ### Functional Flow: 
+                            {application_flow}
 
-    ### Impacted Screens UI Element XPATHS to prepare testcases :
-    {screen_data}
+                    ### Impacted Screens UI Element XPATHS to prepare testcases :
+                            {screen_data}
                             
-    ### Test Cases:
-    {test_cases_list}
+                    ### Test Cases:
+                            {test_cases_list}
 
-    Example Appium Code:
+                        Example Appium Code:
 
-    def test_case_1(self):
-        """
-        Verify the "PNR Status" option is visible and selectable on the Home screen.
-        Steps:
-            1. Navigate to the Home screen.
-            2. Locate the "PNR Status" button.
-            3. Tap on the "PNR Status" button.
-        Expected Outcome: User is navigated to the PNR Status screen.
-        """
-        # Wait for the Home screen to load and locate the "PNR Status" button
-        WebDriverWait(self.driver, 10).until(
-            EC.presence_of_element_located((By.XPATH, "//android.widget.TextView[@text='PNR Status']"))
-        )
-        pnr_status_button = self.driver.find_element(By.XPATH, "//android.widget.TextView[@text='PNR Status']")
-        self.assertTrue(pnr_status_button.is_displayed())
+                        def test_case_1():
+                            # Verify that the app launches and displays the home screen with app icons.
+                            try:
+                                WebDriverWait(driver, 10).until(
+                                    EC.presence_of_element_located((AppiumBy.XPATH, "//android.widget.TextView[@text='Trains']"))
+                                )
+                                assert driver.find_element(AppiumBy.XPATH, "//android.widget.TextView[@text='Trains']").is_displayed()
+                                logging.info("Test Case 1 passed: Home screen loaded successfully")
+                            except Exception as e:
+                                logging.error(f"Test Case 1 failed: {{e}}")
+                                raise
 
-        # Tap on the "PNR Status" button
-        pnr_status_button.click()
+                        def test_case_2():
+                            # Verify that the PNR status screen displays the correct title and input field.
+                            try:
+                                WebDriverWait(driver, 10).until(
+                                    EC.presence_of_element_located((AppiumBy.XPATH, "//android.widget.TextView[@text='PNR Status']"))
+                                )
+                                train_status_button = driver.find_element(AppiumBy.XPATH, "//android.widget.TextView[@text='PNR Status']")
+                                train_status_button.click()
 
-        # Wait for the PNR Status screen to load
-        WebDriverWait(self.driver, 10).until(
-            EC.presence_of_element_located((By.XPATH, "//android.widget.EditText[@text='Enter your 10 digit PNR']"))
-        )
-        self.assertTrue(self.driver.find_element(By.XPATH,
-                                                 "//android.widget.EditText[@text='Enter your 10 digit PNR']").is_displayed())
+                                WebDriverWait(driver, 10).until(
+                                    EC.presence_of_element_located((AppiumBy.XPATH, "//android.widget.TextView[@text='Running Status']"))
+                                )
+                                assert driver.find_element(AppiumBy.XPATH, "//android.widget.TextView[@text='Running Status']").is_displayed()
+                                assert driver.find_element(AppiumBy.XPATH, "//android.widget.EditText[@text='Enter your 10 digit PNR']").is_displayed()
+                                # assert driver.find_element(AppiumBy.XPATH, "//android.widget.Button[@text='Search']").is_displayed()
+                                assert driver.find_element(AppiumBy.ID, "com.ixigo.train.ixitrain:id/btn_search").is_displayed()
+                                logging.info("Test Case 2 passed: PNR status screen displays correct elements")
+                            except Exception as e:
+                                logging.error(f"Test Case 2 failed: {{e}}")
+                                raise
 
-    def test_case_2(self):
-        """
-        Verify user can enter a valid PNR number.
-        Steps:
-            1. Navigate to the PNR Status screen.
-            2. Enter a valid 10-digit PNR number in the input field.
-            3. Tap the "Search" button.
-        Expected Outcome: The input field accepts the PNR number, and the user can tap the search button.
-        """
-        # Navigate to the PNR Status screen (same steps as Test Case 1)
-        self.test_case_1()
-
-        # Locate the PNR input field and enter a valid 10-digit PNR number
-        pnr_input_field = self.driver.find_element(By.XPATH,
-                                                   "//android.widget.EditText[@text='Enter your 10 digit PNR']")
-        pnr_input_field.send_keys("1234567890")
-
-        # Locate the "Search" button and tap on it
-        search_button = self.driver.find_element(By.XPATH, "//android.widget.Button[contains(@text, 'Search')]")
-        search_button.click()
-
-    def test_case_3(self):
-        """
-        Verify the application handles invalid PNR numbers.
-        Steps:
-            1. Enter an invalid or less than 10-digit PNR number.
-        Expected Outcome: The search button should remain disabled.
-        """
-        # Navigate to the PNR Status screen (same steps as Test Case 1)
-        self.test_case_1()
-
-        # Locate the PNR input field and enter an invalid PNR number (less than 10 digits)
-        pnr_input_field = self.driver.find_element(By.XPATH,
-                                                   "//android.widget.EditText[@text='Enter your 10 digit PNR']")
-        pnr_input_field.send_keys("12345")
-
-        # Locate the "Search" button and tap on it
-        search_button = self.driver.find_element(By.XPATH, "//android.widget.Button[contains(@text, 'Search')]")
-        # search_button.click()
-        # Verify that the button is disabled
-        assert not search_button.is_enabled(), "The search button should be disabled for invalid PNR input"
-
-    This is a collage of frames from a video that I want to upload.'''
+                    Notes: 
+                    - Please use # instead of """ for comments in the code.
+                    - Please use AppiumBy.XPATH instead of simply By.XPATH.
+                    - Please ensure any test case with a try block has a corresponding except block to handle exceptions.
+                    
+                    This is a collage of frames from a video that I want to upload.'''
 
     # Create the prompt
-    prompt_ios = f'''I have developed test cases for an iOS application based on the {type_of_flow} functionality.
-    Using the provided video frames, functional flow, the xpaths of UI elements, and test cases,
-    I need to generate Appium code in JavaScript with appropriate assertions and comments and automate the testing of this
-    specific functionality.
+    prompt_ios = f'''I have developed test cases for an iOS application.
+                    Using the provided video frames, functional flow, the xpaths of UI elements, and test cases,
+                    I need to generate Appium code in JavaScript with appropriate assertions and comments and automate the testing of this
+                    specific functionality.
 
-    Note that widgets in the app can be EditText, TextView, Button or some other type, so use XPath given in the prompt 
-    to locate these components. Make sure to use static UI elements not dependent on dynamic data from APIs.
+                    Note that widgets in the app can be EditText, TextView, Button or some other type, so use XPath given in the prompt 
+                    to locate these components. Make sure to use static UI elements not dependent on dynamic data from APIs.
 
-    Here are the key details:
+                    Here are the key details:
 
-    ### Functional Flow: 
-    {application_flow}
+                    ### Functional Flow: 
+                            {application_flow}
 
-    ### Impacted Screens UI Element XPATHS to prepare testcases :
-    {screen_data}
-            
-    ### Test Cases:
-    {test_cases_list}
+                    ### Impacted Screens UI Element XPATHS to prepare testcases :
+                            {screen_data}
+                            
+                    ### Test Cases:
+                            {test_cases_list}
 
-    Example Appium Code for iOS:
+                        Example Appium Code for iOS:
 
-    async function testCase1(client) {{
-        try {{
-            // Verify the "PNR Status" option is visible and selectable on the Home screen.
-            // Steps:
-            // 1. Navigate to the Home screen.
-            // 2. Locate the "PNR Status" button.
-            // 3. Tap on the "PNR Status" button.
-            // Expected Outcome: User is navigated to the PNR Status screen.
+                        async function testCase1(client) {{
+                            try {{
+                                // Verify the "PNR Status" option is visible and selectable on the Home screen.
+                                // Steps:
+                                // 1. Navigate to the Home screen.
+                                // 2. Locate the "PNR Status" button.
+                                // 3. Tap on the "PNR Status" button.
+                                // Expected Outcome: User is navigated to the PNR Status screen.
 
-            // Wait for the Home screen to load and locate the "PNR Status" button
-            const pnrStatusButton = await client.$('//XCUIElementTypeStaticText[contains(@label, "PNR Status")]');
-            if (await pnrStatusButton.isDisplayed()) {{
-                await pnrStatusButton.click();
-            }} else {{
-                throw new Error('"PNR Status" button is not displayed');
-            }}
+                                // Wait for the Home screen to load and locate the "PNR Status" button
+                                const pnrStatusButton = await client.$('//XCUIElementTypeStaticText[contains(@label, "PNR Status")]');
+                                if (await pnrStatusButton.isDisplayed()) {{
+                                    await pnrStatusButton.click();
+                                }} else {{
+                                    throw new Error('"PNR Status" button is not displayed');
+                                }}
 
-            // Wait for the PNR Status screen to load
-            await client.pause(2000); // Adjust the delay as necessary
+                                // Wait for the PNR Status screen to load
+                                await client.pause(2000); // Adjust the delay as necessary
 
-            // Validate the PNR Status screen
-            const pnrInput = await client.$('//XCUIElementTypeTextField[contains(@value, "Enter your 10 digit PNR")]');
-            if (!await pnrInput.isDisplayed()) {{
-                throw new Error('"Enter your 10 digit PNR" input field is not displayed');
-            }}
-        }} catch (error) {{
-            console.error('Error in testCase1:', error);
-            throw error;
-        }}
-    }}
+                                // Validate the PNR Status screen
+                                const pnrInput = await client.$('//XCUIElementTypeTextField[contains(@value, "Enter your 10 digit PNR")]');
+                                if (!await pnrInput.isDisplayed()) {{
+                                    throw new Error('"Enter your 10 digit PNR" input field is not displayed');
+                                }}
+                            }} catch (error) {{
+                                console.error('Error in testCase1:', error);
+                                throw error;
+                            }}
+                        }}
 
-    async function testCase2(client) {{
-        try {{
-            // Verify user can enter a valid PNR number.
-            // Steps:
-            // 1. Navigate to the PNR Status screen.
-            // 2. Enter a valid 10-digit PNR number in the input field.
-            // 3. Tap the "Search" button.
-            // Expected Outcome: The input field accepts the PNR number, and the user can tap the search button.
+                        async function testCase2(client) {{
+                            try {{
+                                // Verify user can enter a valid PNR number.
+                                // Steps:
+                                // 1. Navigate to the PNR Status screen.
+                                // 2. Enter a valid 10-digit PNR number in the input field.
+                                // 3. Tap the "Search" button.
+                                // Expected Outcome: The input field accepts the PNR number, and the user can tap the search button.
 
-            // Navigate to the PNR Status screen (reuse steps from testCase1)
-            await testCase1(client);
+                                // Navigate to the PNR Status screen (reuse steps from testCase1)
+                                await testCase1(client);
 
-            // Locate the PNR input field and enter a valid 10-digit PNR number
-            const pnrInput = await client.$('//XCUIElementTypeTextField[contains(@value, "Enter your 10 digit PNR")]');
-            await pnrInput.setValue('1234567890');
+                                // Locate the PNR input field and enter a valid 10-digit PNR number
+                                const pnrInput = await client.$('//XCUIElementTypeTextField[contains(@value, "Enter your 10 digit PNR")]');
+                                await pnrInput.setValue('1234567890');
 
-            // Locate and tap the "Search" button
-            const searchButton = await client.$('//XCUIElementTypeButton[contains(@label, "Search")]');
-            await searchButton.click();
+                                // Locate and tap the "Search" button
+                                const searchButton = await client.$('//XCUIElementTypeButton[contains(@label, "Search")]');
+                                await searchButton.click();
 
-            // Wait for the search results to load
-            await client.pause(5000); // Adjust the delay as necessary
-        }} catch (error) {{
-            console.error('Error in testCase2:', error);
-            throw error;
-        }}
-    }}
+                                // Wait for the search results to load
+                                await client.pause(5000); // Adjust the delay as necessary
+                            }} catch (error) {{
+                                console.error('Error in testCase2:', error);
+                                throw error;
+                            }}
+                        }}
 
-    async function testCase3(client) {{
-        try {{
-            // Verify the application handles invalid PNR numbers.
-            // Steps:
-            // 1. Enter an invalid or less than 10-digit PNR number.
-            // Expected Outcome: The search button should remain disabled.
+                        async function testCase3(client) {{
+                            try {{
+                                // Verify the application handles invalid PNR numbers.
+                                // Steps:
+                                // 1. Enter an invalid or less than 10-digit PNR number.
+                                // Expected Outcome: The search button should remain disabled.
 
-            // Navigate to the PNR Status screen (reuse steps from testCase1)
-            await testCase1(client);
+                                // Navigate to the PNR Status screen (reuse steps from testCase1)
+                                await testCase1(client);
 
-            // Locate the PNR input field and enter an invalid PNR number (less than 10 digits)
-            const pnrInput = await client.$('//XCUIElementTypeTextField[contains(@value, "Enter your 10 digit PNR")]');
-            await pnrInput.setValue('12345');
+                                // Locate the PNR input field and enter an invalid PNR number (less than 10 digits)
+                                const pnrInput = await client.$('//XCUIElementTypeTextField[contains(@value, "Enter your 10 digit PNR")]');
+                                await pnrInput.setValue('12345');
 
-            // Locate the "Search" button
-            const searchButton = await client.$('//XCUIElementTypeButton[contains(@label, "Search")]');
+                                // Locate the "Search" button
+                                const searchButton = await client.$('//XCUIElementTypeButton[contains(@label, "Search")]');
 
-            // Verify that the search button is disabled
-            const isEnabled = await searchButton.isEnabled();
-            if (isEnabled) {{
-                throw new Error('The search button should be disabled for invalid PNR input');
-            }}
-        }} catch (error) {{
-            console.error('Error in testCase3:', error);
-            throw error;
-        }}
-    }}
+                                // Verify that the search button is disabled
+                                const isEnabled = await searchButton.isEnabled();
+                                if (isEnabled) {{
+                                    throw new Error('The search button should be disabled for invalid PNR input');
+                                }}
+                            }} catch (error) {{
+                                console.error('Error in testCase3:', error);
+                                throw error;
+                            }}
+                        }}
 
-    This is a collage of frames from a video that I want to upload.'''
+                    This is a collage of frames from a video that I want to upload.'''
 
     # Set the model to Gemini 1.5 Pro.
     model = genai.GenerativeModel(model_name="models/gemini-1.5-pro-latest")
 
     # Make the LLM request.
-    print("Making LLM inference request...")
+    logger.info("Making LLM inference request...")
     if os_type == 'android':
         response = model.generate_content([prompt_android, image_file],
                                           request_options={"timeout": 600})
@@ -516,205 +586,237 @@ async def generate_code_for_test_cases_gemini_collage(file: UploadFile = File(..
                                           request_options={"timeout": 600})
 
     total_tokens = response.usage_metadata.total_token_count
-    print("Total tokens used", total_tokens)
+    logger.info("Total tokens used: %s", total_tokens)
 
-    print("result", response.text)
-    return {"result": response.text}
-
-
-class VisualTestingRequest(BaseModel):
-    testScreen: str
-    screen_type: str
-    osType: str
+    logger.info("result: %s", response.text)
+    return response.text
 
 
-class BackendTestingRequest(BaseModel):
-    curl: str
-    functionality: str
-    success_response: str
-    error_response: str
-    test_cases_list: list
+@app.post("/gemini_collage/test/")
+async def create_test(video: UploadFile = File(...)):
+    test_id = str(uuid.uuid4())
+    video_path = f"./videos/{test_id}.mp4"
 
+    os.makedirs(os.path.dirname(video_path), exist_ok=True)
 
-def worker(args):
-    func, original_image, test_screen = args
-    return func(original_image, test_screen)
+    with open(video_path, "wb") as buffer:
+        shutil.copyfileobj(video.file, buffer)
 
+    test_data = {
+        "test_id": test_id,
+        "video_path": video_path
+    }
+    db.collection("gemini_collage_tests").document(test_id).set(test_data)
 
-@app.post("/visual_testing_gemini_collage")
-async def visual_testing_gemini_collage(request: VisualTestingRequest):
-    # print(request.testScreen)
-    # print(request.screen_type)
-    # print(request.osType)
-    print("visual testing stared")
-    original_image = visual_testing_images.get(request.osType).get(request.screen_type)
-
-    # Define the functions and their arguments
-    tasks = [
-        (process_color_in_images, original_image, request.testScreen),
-        (process_layout_in_images, original_image, request.testScreen),
-        (process_text_in_images, original_image, request.testScreen)
-    ]
-
-    # Run the functions in parallel using multiprocessing
-    with multiprocessing.Pool(processes=3) as pool:
-        results = pool.map(worker, tasks)
-
-    # Collect the results
-    color_diff, layout_diff, text_diff = results
-
-    visual_testing_result = visual_analyze(text_diff, layout_diff, color_diff)
-    # print(visual_testing_result)
-    return {"result": {
-        "visual_testing": visual_testing_result,
-        "original_Img": original_image,
-        "testing_Img": request.testScreen
-    }}
-
-
-@app.post("/backend_tc_gen_gemini_collage")
-async def generate_test_cases_for_backend_gemini_collage(request: BackendTestingRequest):
-    print("curl", request.curl)
-
-    # Create the prompt
-    prompt = f'''Based on the functionality : {request.functionality}, the cURL request: {request.curl},
-                the success : {request.success_response} and the error response : {request.error_response}
-                I need to create comprehensive backend test cases so that each scenario can be validated.
-
-                Please make sure that the test cases are comprehensive, covering all possible scenarios.
-                
-                ### Instructions:
-
-                1. **Review the Functional Flow:**
-                   - Carefully understand and review the functionality flow given.
-                    {request.functionality}
-
-                2. **Generate Test Cases:**
-                   - Create detailed backend test cases for each scenario.
-                   - Follow the format given strictly in example only.
-                   - Ensure each test case includes:
-                     - A clear and specific description of the test case
-                     - Any setup or preconditions that must be met before the test can be executed (e.g., database state, specific configurations).
-                     - Detailed steps to execute the test, including HTTP method (GET, POST, PUT, DELETE), endpoint URL, headers, and request body.
-                     - Specific input data required for the test case, such as query parameters, path variables, or JSON payloads.
-                     - The expected outcome of the test, including status codes, response body structure, response headers, and any other relevant details.
-
-                    Example Structure + Format:
-
-                    ###Test Case 1:###
-                    - **Name:** [Name of the testcase]
-                    - **Description:** [Detailed description of the test case]
-                    - **Preconditions:** [Any setup or preconditions that must be met before the test can be executed ]
-                    - **Test Steps:**
-                      1. [Step-by-step instructions]
-                      2. [Continue steps as necessary]
-                    - **Test Data** [Specific input data required for the test case, such as query parameters, path variables, or JSON payloads.]
-                    - **Expected Result:** [The expected outcome of the test, including status codes, response body structure, response headers, and any other relevant details.]
-
-                    ###Test Case 2:###
-                    - **Name:** [Name of the testcase]
-                    - **Description:** [Detailed description of the test case]
-                    - **Preconditions:** [Any setup or preconditions that must be met before the test can be executed ]
-                    - **Test Steps:**
-                      1. [Step-by-step instructions]
-                      2. [Continue steps as necessary]
-                    - **Test Data** [Specific input data required for the test case, such as query parameters, path variables, or JSON payloads.]
-                    - **Expected Result:** [The expected outcome of the test, including status codes, response body structure, response headers, and any other relevant details.]
-                '''
-
-    # Set the model to Gemini 1.5 Pro.
-    model = genai.GenerativeModel(model_name="models/gemini-1.5-pro-latest")
-
-    # Make the LLM request.
-    print("Making LLM inference request...")
-    response = model.generate_content(prompt,
-                                      request_options={"timeout": 600})
-    print("result", response.text)
-    return {"result": response.text}
-
-
-@app.post("/backend_tc_code_gen_gemini_collage")
-async def generate_test_cases_code_for_backend_gemini_collage(request: BackendTestingRequest):
-    # Create the prompt
-    prompt = f'''I have developed test cases for by backend application based on the functionality : {request.functionality}, the cURL request: {request.curl},
-                the success : {request.success_response} and the error response : {request.error_response}
-                
-                I need to generate java code for these test cases with appropriate assertions and comments and automate the testing of this
-                specific functionality.
-
-                Please make sure that the test cases are comprehensive, covering all possible scenarios.
-                
-                ### Test Cases:
-                {request.test_cases_list}
-                
-                ### Example Test Cases codes for reference:
-                
-                ''' + '''
-    /**
-     * Test Case: Valid PNR Number
-     * Description: Verify that the API returns correct details when a valid PNR number is provided.
-     * Preconditions: A valid PNR number exists in the system.
-     */
-    @Test
-    public void testValidPnrNumber() {
-        String validPnr = "1234567890";
-        String mode = "NEW_ADDITION";
-
-        // Send a GET request to the endpoint with valid PNR number
-        Response response = given()
-                .queryParam("pnr", validPnr)
-                .queryParam("mode", mode)
-                .when()
-                .get("/pnr/enquiry")
-                .then()
-                .statusCode(200)
-                .extract()
-                .response();
-
-        // Validate response headers
-        assertEquals("application/json", response.getHeader("Content-Type"));
-
-        // Validate response body
-        response.then().body("data.id", equalTo(validPnr));
-        response.then().body("data.name", equalTo("TRAIN " + validPnr));
-        // Add more assertions as needed to validate the response body
+    return {
+        "status": True,
+        "data": {
+            "testId": test_id,
+        }
     }
 
-    /**
-     * Test Case: Invalid PNR Number
-     * Description: Verify that the API returns an error message when an invalid PNR number is provided.
-     * Preconditions: The PNR number does not exist in the system.
-     */
-    @Test
-    public void testInvalidPnrNumber() {
-        String invalidPnr = "0000000000";
-        String mode = "NEW_ADDITION";
 
-        // Send a GET request to the endpoint with invalid PNR number
-        Response response = given()
-                .queryParam("pnr", invalidPnr)
-                .queryParam("mode", mode)
-                .when()
-                .get("/pnr/enquiry")
-                .then()
-                .statusCode(500)
-                .extract()
-                .response();
+@app.post("/gemini_collage/func_flow/{test_id}")
+async def create_func_flow(test_id: str):
+    video_path = f"./videos/{test_id}.mp4"
 
-        // Validate response headers
-        assertEquals("application/json", response.getHeader("Content-Type"));
+    func_flow = await generate_func_flow_gemini_collage(video_path)
 
-        // Validate response body
-        response.then().body("errors.code", equalTo(500));
-        response.then().body("errors.message", equalTo("PNR No. is not valid"));
-    }'''
+    func_flow_data = {
+        "func_flow": func_flow
+    }
+    db.collection("gemini_collage_tests").document(test_id).update(func_flow_data)
 
-    # Set the model to Gemini 1.5 Pro.
-    model = genai.GenerativeModel(model_name="models/gemini-1.5-pro-latest")
+    return {
+        "status": True,
+        "data": {
+            "funcFlow": func_flow
+        }
+    }
 
-    # Make the LLM request.
-    print("Making LLM inference request...")
-    response = model.generate_content(prompt,
-                                      request_options={"timeout": 600})
-    print("result", response.text)
-    return {"result": response.text}
+
+def get_func_flow(test_id: str):
+    doc = db.collection("gemini_collage_tests").document(test_id).get()
+
+    if doc.exists and 'func_flow' in doc.to_dict():
+        return doc.to_dict()['func_flow']
+    else:
+        raise ValueError(f"Document with ID {test_id} does not exist or does not contain 'func_flow'")
+
+
+@app.post("/gemini_collage/test_cases/{test_id}")
+async def create_test_cases(test_id: str):
+    video_path = f"./videos/{test_id}.mp4"
+    func_flow = get_func_flow(test_id=test_id)
+
+    test_cases = await generate_test_cases_gemini_collage(video_path, func_flow)
+
+    test_cases_data = {
+        "test_cases": test_cases
+    }
+    db.collection("gemini_collage_tests").document(test_id).update(test_cases_data)
+
+    return {
+        "status": True,
+        "data": {
+            "testCases": test_cases
+        }
+    }
+
+
+def get_test_cases(test_id: str):
+    doc = db.collection("gemini_collage_tests").document(test_id).get()
+
+    if doc.exists and 'test_cases' in doc.to_dict():
+        return doc.to_dict()['test_cases']
+    else:
+        raise ValueError(f"Document with ID {test_id} does not exist or does not contain 'test_cases'")
+
+
+@app.post("/gemini_collage/test_cases/code/{test_id}")
+async def create_test_cases_code(test_id: str):
+    video_path = f"./videos/{test_id}.mp4"
+    func_flow = get_func_flow(test_id=test_id)
+    test_cases = get_test_cases(test_id=test_id)
+
+    test_cases_code = await generate_code_for_test_cases_gemini_collage(video_path, func_flow, test_cases)
+
+    test_cases_code_data = {
+        "test_cases_code": test_cases_code
+    }
+    db.collection("gemini_collage_tests").document(test_id).update(test_cases_code_data)
+
+    return {
+        "status": True,
+        "data": {
+            "testCases": test_cases_code
+        }
+    }
+
+
+def get_test_cases_code(test_id: str):
+    doc = db.collection("gemini_collage_tests").document(test_id).get()
+
+    if doc.exists and 'test_cases_code' in doc.to_dict():
+        return doc.to_dict()['test_cases_code']
+    else:
+        raise ValueError(f"Document with ID {test_id} does not exist or does not contain 'test_cases_code'")
+
+
+def setup():
+    global driver
+    options = UiAutomator2Options()
+    options.platform_name = 'Android'
+    options.device_name = 'emulator-5556'
+    options.app_package = 'com.ixigo.train.ixitrain'
+    options.app_activity = 'com.ixigo.train.ixitrain.TrainActivity'
+    options.no_reset = True
+
+    try:
+        driver = webdriver.Remote('http://localhost:4723/wd/hub', options=options)
+
+        # Navigate to the home screen
+        driver.press_keycode(3)
+
+        # Open the app drawer
+        driver.swipe(start_x=500, start_y=1500, end_x=500, end_y=500, duration=800)
+        WebDriverWait(driver, 30).until(
+            EC.presence_of_element_located((AppiumBy.XPATH, "//android.widget.TextView[@text='ixigo trains']"))
+        )
+
+        # Click on the ixigo app icon
+        ixigo_icon = driver.find_element(AppiumBy.XPATH, "//android.widget.TextView[@text='ixigo trains']")
+        ixigo_icon.click()
+
+        # Wait until the app is launched
+        WebDriverWait(driver, 30).until(
+            EC.presence_of_element_located((AppiumBy.XPATH, "//android.widget.TextView[@text='Trains']"))
+        )
+
+    except Exception as e:
+        logging.error(f"Error setting up Appium driver: {e}")
+        raise
+
+
+def teardown():
+    global driver
+    if driver:
+        driver.quit()
+
+
+def extract_test_cases(code_snippet):
+    """
+    Extract test case functions from the provided code snippet and append their calls.
+
+    :param code_snippet: The entire code snippet as a string.
+    :return: A string containing all test case functions and their calls.
+    """
+    # Regular expression to match class methods starting with 'test_case_' and include all indented lines
+    test_case_pattern = re.compile(r'(def test_case_\d+\(\):\n(?: {4}.*\n)*)', re.MULTILINE)
+
+    # Find all matches in the provided code snippet
+    matches = test_case_pattern.findall(code_snippet)
+
+    # Join all matches with a newline to form the output string
+    result = "\n".join(matches)
+
+    # Extract test case function names
+    test_case_calls = [re.search(r'def (test_case_\d+)\(\):', match).group(1) for match in matches]
+
+    # Append the test case calls to the result
+    result += "\n\n" + "\n".join(f"{test_case_call}()" for test_case_call in test_case_calls)
+
+    return result
+
+
+@app.post("/gemini_collage/test/execute/{test_id}")
+async def execute_test(test_id: str):
+    test_cases_code = get_test_cases_code(test_id=test_id)
+    extracted_test_cases = extract_test_cases(test_cases_code)
+
+    results = []
+
+    try:
+        setup()
+        for test_case in extracted_test_cases.split("\n\n"):
+            try:
+                print(test_case)
+                exec(test_case)
+                if test_case.strip().startswith("def "):
+                    test_case_id = re.search(r'def (test_case_\d+)\(\):', test_case).group(1)
+                    test_case_description = test_case.splitlines()[1].strip().lstrip("# ") \
+                        if len(test_case.splitlines()) > 1 else ""
+                    results.append({
+                        "testId": test_id,
+                        "testCaseId": test_case_id,
+                        "testCaseDescription": test_case_description,
+                        "status": "PASSED"
+                    })
+            except Exception as e:
+                if test_case.strip().startswith("def "):
+                    test_case_id = re.search(r'def (test_case_\d+)\(\):', test_case).group(1)
+                    test_case_description = test_case.splitlines()[1].strip().lstrip("# ")
+                    results.append({
+                        "testId": test_id,
+                        "testCaseId": test_case_id,
+                        "testCaseDescription": test_case_description,
+                        "status": "FAILED"
+                    })
+                    logging.error(f"{test_case_id} failed: {e}")
+    except Exception as e:
+        logging.error(f"Error during test execution: {e}")
+    finally:
+        teardown()
+
+    # Store execution results in Firestore
+    results_data = {
+        "results": results
+    }
+    db.collection("gemini_collage_tests").document(test_id).update(results_data)
+
+    return {
+        "status": True,
+        "data": {
+            "results": results
+        }
+    }
