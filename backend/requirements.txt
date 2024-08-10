@@ -5,5 +5,7 @@ opencv-python
 openai
 vertexai
 google.generativeai
+firebase-admin
 scikit-image
 matplotlib
+Appium-Python-Client
