@@ -787,7 +787,7 @@ def setup():
     global driver
     options = UiAutomator2Options()
     options.platform_name = 'Android'
-    options.device_name = 'emulator-5556'
+    options.device_name = 'emulator-5554'
     options.app_package = 'com.ixigo.train.ixitrain'
     options.app_activity = 'com.ixigo.train.ixitrain.TrainActivity'
     options.no_reset = True
