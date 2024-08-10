@@ -58,13 +58,6 @@ with open('qautomate/screen_ui_elements_map_ios.json', 'r') as f:
 
 base64_collage = None
 
-database = {
-    "tests": {},
-    "func_flows": {},
-    "test_cases": {},
-    "test_cases_code": {}
-}
-
 driver = None
 
 
