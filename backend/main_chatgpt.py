@@ -832,7 +832,7 @@ def extract_test_cases(code_snippet):
     :return: A list containing all test case functions.
     """
     # Regular expression to match class methods starting with 'test_case_' and include all indented lines
-    test_case_pattern = re.compile(r'(def test_case_\d+\(.*?\):\n(?: {4}.*\n)*)(?=\ndef|$)', re.DOTALL)
+    test_case_pattern = re.compile(r"(def test_case_\d+\(.*?\):\s+.*?)(?=def|\Z)", re.DOTALL)
 
     # Find all matches in the provided code snippet
     matches = test_case_pattern.findall(code_snippet)
