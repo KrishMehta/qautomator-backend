@@ -871,8 +871,9 @@ async def execute_test(test_id: str):
             print(test_case_call)
             test_case_id = re.search(r'def (test_case_\d+)\(\):', test_case).group(1)
             combined_code = test_case + f"\n\n{test_case_call}"
+            local_context = {}
             try:
-                exec(combined_code)
+                exec(combined_code, globals(), local_context)
                 results.append({
                     "testId": test_id,
                     "testCaseId": test_case_id,
