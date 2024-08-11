@@ -598,7 +598,7 @@ def extract_test_case_calls(code_snippet):
     return [f"{test_case_call}()" for test_case_call in matches]
 
 
-@app.post("/test/execute/{test_id}")
+@app.post("/gemini/test/execute/{test_id}")
 async def execute_test(test_id: str):
     test_cases_code = get_test_cases_code(test_id=test_id)
     extracted_test_cases = extract_test_cases(test_cases_code)
